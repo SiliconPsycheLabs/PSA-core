@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Silicon Psyche Monitor</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <!-- Header -->
+  <header class="pp-header">
+    <span class="pp-logo">⬡</span>
+    <div class="pp-brand">
+      <div class="pp-title">Silicon Psyche</div>
+      <div class="pp-sub">ACT Monitor</div>
+    </div>
+    <div class="pp-session-dot" id="pp-dot" title="Session status"></div>
+  </header>
+
+  <!-- DRM Badge -->
+  <div class="pp-drm-block" id="pp-drm-block">
+    <div class="pp-drm-label">Last DRM Alert</div>
+    <div class="pp-drm-badge" id="pp-drm-badge">—</div>
+  </div>
+
+  <!-- Stats Grid -->
+  <div class="pp-stats">
+    <div class="pp-stat">
+      <div class="pp-stat-label">Turns</div>
+      <div class="pp-stat-val" id="pp-turns">0</div>
+    </div>
+    <div class="pp-stat">
+      <div class="pp-stat-label">CRITICAL</div>
+      <div class="pp-stat-val pp-critical" id="pp-critical">0</div>
+    </div>
+    <div class="pp-stat">
+      <div class="pp-stat-label">Avg ACT</div>
+      <div class="pp-stat-val" id="pp-avg-act">—</div>
+    </div>
+    <div class="pp-stat">
+      <div class="pp-stat-label">Peak HRI</div>
+      <div class="pp-stat-val" id="pp-peak-hri">—</div>
+    </div>
+  </div>
+
+  <!-- No session state -->
+  <div class="pp-no-session" id="pp-no-session" style="display:none">
+    Open claude.ai and start a conversation to begin monitoring.
+  </div>
+
+  <!-- Analysis toggle -->
+  <div class="pp-toggle-row">
+    <span class="pp-toggle-label">Live Analysis</span>
+    <label class="pp-switch">
+      <input type="checkbox" id="pp-enabled-toggle" checked>
+      <span class="pp-slider"></span>
+    </label>
+  </div>
+
+  <!-- Actions -->
+  <div class="pp-actions">
+    <button class="pp-btn pp-btn-primary" id="pp-open-sidebar">Open Dashboard ↗</button>
+    <button class="pp-btn" id="pp-settings">⚙ Settings</button>
+    <button class="pp-btn pp-btn-danger" id="pp-clear">↺ Clear Session</button>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

@@ -1,0 +1,319 @@
+/* Silicon Psyche ACT Monitor — Admin / Settings Styles */
+
+:root {
+  --bg:   #f7f7f5;
+  --bg2:  #ffffff;
+  --bg3:  #efefed;
+  --text: #1a1d27;
+  --text2: #555;
+  --text3: #888;
+  --border: rgba(0,0,0,0.09);
+  --accent: #1a1d27;
+  --accent-fg: #ffffff;
+  --danger: #c0392b;
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg:   #1a1d27;
+    --bg2:  #22263a;
+    --bg3:  #2a2f45;
+    --text: #e8e8e8;
+    --text2: #aaa;
+    --text3: #666;
+    --border: rgba(255,255,255,0.08);
+    --accent: #7b9ccd;
+    --accent-fg: #1a1d27;
+    --danger: #e74c3c;
+  }
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--font);
+  font-size: 13px;
+  color: var(--text);
+  background: var(--bg);
+  min-height: 100vh;
+}
+
+/* ─── Container ──────────────────────────────────────────────────────────── */
+
+.adm-container {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 24px 20px 80px;
+}
+
+/* ─── Header ─────────────────────────────────────────────────────────────── */
+
+.adm-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 28px;
+}
+
+.adm-logo {
+  font-size: 32px;
+  color: var(--accent);
+}
+
+.adm-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.03em;
+}
+
+.adm-subtitle {
+  font-size: 12px;
+  color: var(--text3);
+  margin-top: 1px;
+}
+
+/* ─── Sections ───────────────────────────────────────────────────────────── */
+
+.adm-section {
+  background: var(--bg2);
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  padding: 18px;
+  margin-bottom: 16px;
+}
+
+.adm-section-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text3);
+  margin-bottom: 16px;
+}
+
+/* ─── Fields ─────────────────────────────────────────────────────────────── */
+
+.adm-field-group {
+  margin-bottom: 16px;
+}
+
+.adm-field-group:last-child { margin-bottom: 0; }
+
+.adm-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+
+.adm-input-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.adm-input {
+  flex: 1;
+  padding: 7px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 13px;
+  font-family: var(--font);
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.adm-input:focus {
+  border-color: var(--accent);
+}
+
+.adm-select {
+  cursor: pointer;
+}
+
+.adm-hint {
+  font-size: 11px;
+  color: var(--text3);
+  margin-top: 4px;
+}
+
+.adm-code {
+  font-family: 'SF Mono', Consolas, 'Courier New', monospace;
+  font-size: 11px;
+  color: var(--text2);
+  background: var(--bg3);
+  padding: 6px 10px;
+  border-radius: 5px;
+  word-break: break-all;
+}
+
+/* ─── Buttons ─────────────────────────────────────────────────────────────── */
+
+.adm-btn {
+  padding: 7px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg3);
+  color: var(--text2);
+  font-size: 12px;
+  font-family: var(--font);
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+
+.adm-btn:hover { background: var(--border); color: var(--text); }
+
+.adm-btn-sm { padding: 5px 10px; font-size: 11px; }
+
+.adm-btn-primary {
+  background: var(--accent);
+  color: var(--accent-fg);
+  border-color: transparent;
+}
+
+.adm-btn-primary:hover { opacity: 0.85; }
+
+.adm-btn-danger {
+  background: transparent;
+  color: var(--danger);
+  border-color: rgba(192,57,43,0.25);
+}
+
+.adm-btn-danger:hover { background: rgba(192,57,43,0.08); }
+
+.adm-btn-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+/* ─── Status Messages ────────────────────────────────────────────────────── */
+
+.adm-status {
+  font-size: 11px;
+  min-height: 16px;
+  margin-top: 5px;
+  font-weight: 500;
+}
+
+.adm-status-ok  { color: #3b6d11; }
+.adm-status-err { color: #a32d2d; }
+
+/* ─── Toggles ─────────────────────────────────────────────────────────────── */
+
+.adm-toggle-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.adm-toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  user-select: none;
+}
+
+.adm-toggle-row:last-child { border-bottom: none; }
+
+.adm-toggle-label {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.adm-toggle-hint {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text3);
+}
+
+/* Hidden checkbox */
+.adm-toggle-cb { display: none; }
+
+/* Custom toggle switch */
+.adm-toggle-switch {
+  position: relative;
+  width: 36px;
+  height: 20px;
+  flex-shrink: 0;
+  background: var(--bg3);
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  transition: background 0.2s, border-color 0.2s;
+  cursor: pointer;
+}
+
+.adm-toggle-switch::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--text3);
+  transition: left 0.2s, background 0.2s;
+}
+
+.adm-toggle-cb:checked + .adm-toggle-switch {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.adm-toggle-cb:checked + .adm-toggle-switch::after {
+  left: 18px;
+  background: white;
+}
+
+/* ─── About ──────────────────────────────────────────────────────────────── */
+
+.adm-about {
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--text2);
+}
+
+.adm-link {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.adm-link:hover { text-decoration: underline; }
+
+/* ─── Save Bar ───────────────────────────────────────────────────────────── */
+
+.adm-save-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  background: var(--bg2);
+  border-top: 1px solid var(--border);
+  z-index: 100;
+}
+
+.adm-save-status {
+  font-size: 12px;
+  font-weight: 500;
+  color: #3b6d11;
+}

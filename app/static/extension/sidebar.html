@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Silicon Psyche Monitor</title>
+  <link rel="stylesheet" href="sidebar.css">
+  <script src="chart.min.js"></script>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- Header -->
+  <header class="sb-header">
+    <div class="sb-brand">
+      <span class="sb-logo">⬡</span>
+      <span class="sb-title">Silicon Psyche</span>
+    </div>
+    <div class="sb-header-right">
+      <span class="sb-session-id" id="sb-session-id">No session</span>
+      <button class="sb-btn" id="sb-clear-btn" title="Clear session">↺</button>
+      <button class="sb-close" id="sb-close-btn" title="Close">×</button>
+    </div>
+  </header>
+
+  <!-- Summary -->
+  <div class="stitle">Session overview</div>
+  <div class="sum mb" id="sb-summary">
+    <div class="sc"><div class="sl">DRM CRITICAL</div><div class="sv" id="stat-critical" style="color:var(--critical);">—</div><div class="ss" id="stat-critical-turns"></div></div>
+    <div class="sc"><div class="sl">ACT YELLOW</div><div class="sv" id="stat-yellow" style="color:var(--yellow);">—</div><div class="ss">turns with alert</div></div>
+    <div class="sc"><div class="sl">Avg composite</div><div class="sv" id="stat-act">—</div><div class="ss">ACT behavioral</div></div>
+    <div class="sc"><div class="sl">Peak HRI</div><div class="sv" id="stat-hri" style="color:var(--red);">—</div><div class="ss">human-risk index</div></div>
+    <div class="sc"><div class="sl">Peak RAG</div><div class="sv" id="stat-rag" style="color:var(--critical);">—</div><div class="ss">response gap</div></div>
+    <div class="sc"><div class="sl">BHS floor</div><div class="sv" id="stat-bhs" style="color:var(--yellow);">—</div><div class="ss">min behavioral health</div></div>
+    <div class="sc"><div class="sl">Interventions</div><div class="sv" id="stat-interventions" style="color:var(--critical);">—</div><div class="ss">crisis_resources</div></div>
+  </div>
+
+  <!-- Critical banner -->
+  <div class="crit-banner mb" id="sb-crit-banner" style="display:none;">
+    <div class="crit-icon">⚠</div>
+    <div>
+      <div class="crit-title" id="sb-crit-title"></div>
+      <div class="crit-body" id="sb-crit-body"></div>
+    </div>
+  </div>
+
+  <!-- Chart 1: ACT vs DRM -->
+  <div class="stitle">Behavioral trajectory</div>
+  <div class="cb mb">
+    <h3>ACT composite vs DRM score per turn</h3>
+    <div style="position:relative;height:180px;"><canvas id="chart-act-drm"></canvas></div>
+  </div>
+
+  <!-- Chart 2: IRS vs RAG -->
+  <div class="cb mb">
+    <h3>IRS composite vs RAG score per turn</h3>
+    <div style="position:relative;height:180px;"><canvas id="chart-irs-rag"></canvas></div>
+  </div>
+
+  <!-- Chart 3: IRS dimensions -->
+  <div class="cb mb">
+    <h3>IRS dimensions — suicidality · dissociation · grandiosity · urgency</h3>
+    <div style="position:relative;height:150px;"><canvas id="chart-irs-dims"></canvas></div>
+  </div>
+
+  <!-- Chart 4: User ACT staccato -->
+  <div class="cb mb">
+    <h3>User ACT staccato ratio (fragmentation signal)</h3>
+    <div style="position:relative;height:120px;"><canvas id="chart-staccato"></canvas></div>
+  </div>
+
+  <!-- Heatmap -->
+  <div class="stitle">Risk heatmap — metric × turn</div>
+  <div class="cb mb">
+    <h3>Full metric intensity grid — ACT + PSA + IRS + RAG + DRM</h3>
+    <div style="overflow-x:auto;margin-top:8px;"><table class="hm" id="sb-heatmap"></table></div>
+  </div>
+
+  <!-- Turns -->
+  <div class="stitle">Turn-by-turn detail</div>
+  <div class="turns" id="sb-turns-list"></div>
+
+</div>
+<script src="sidebar.js"></script>
+</body>
+</html>
