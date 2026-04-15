@@ -119,7 +119,6 @@ psa/
 │   │   ├── admin.py             # Admin user management
 │   │   ├── admin_stats.py       # System stats (PSA posture counts)
 │   │   ├── test_engine.py       # Admin PSA engine testing
-│   │   ├── chat.py              # OpenRouter chat proxy
 │   │   └── chaos.py             # Silicon Chaos endpoints
 │   ├── payments/                # Stripe billing
 │   ├── email/                   # Resend email + templates
@@ -128,7 +127,10 @@ psa/
 │   │   ├── psa_models.py        # PsaPosture, PsaSession, SIGTRACKIncident
 │   │   └── chaos_models.py      # ChaosProvider, ChaosRun
 │   ├── templates/               # Jinja2 HTML (PSA dashboards only)
-│   └── static/                  # CSS + JS
+│   ├── static/
+│   │   ├── extension/           # Browser extension (MV3 Chrome) for real-time monitoring
+│   │   ├── css/                 # Tailwind CSS
+│   │   └── js/                  # Frontend logic
 │
 ├── psa/                         # PSA v2 engine
 ├── psa_v3/                      # PSA v3 multi-agent engine
@@ -307,6 +309,27 @@ STRIPE_PRICE_ENTERPRISE=price_xxxxx
 | `/admin` | Admin panel |
 | `/settings` | User settings & API keys |
 | `/docs/api` | API documentation |
+
+---
+
+## Browser Extension
+
+PSA includes a Chrome Manifest V3 extension for real-time monitoring and analysis of AI conversation sessions. The extension:
+
+- **Real-time monitoring** — Captures and analyzes AI responses as they stream
+- **Inline insights** — Displays PSA posture metrics directly in the conversation
+- **Dashboard** — Persistent sidebar with PSA state, behavioral health score, and alert distribution
+- **Admin panel** — Configure API endpoints and monitoring preferences
+
+**Location:** `app/static/extension/`
+
+**Files:**
+- `manifest.json` — Extension metadata (MV3)
+- `background.js` — Service Worker for API communication
+- `content.js` — Page injection and message monitoring
+- `sidebar.html/js/css` — Dashboard UI with Chart.js visualization
+- `admin.html/js/css` — Settings and configuration panel
+- `popup.html/js/css` — Quick status view
 
 ---
 
