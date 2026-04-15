@@ -1,0 +1,487 @@
+/* Silicon Psyche ACT Monitor — Content Styles */
+/* All classes are prefixed with .splabs- to avoid conflicts with claude.ai */
+
+/* ─── CSS Variables ─────────────────────────────────────────────────────── */
+
+:root {
+  --splabs-font: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", sans-serif;
+  --splabs-chip-font-size: 11px;
+  --splabs-chip-padding: 2px 7px;
+  --splabs-chip-radius: 4px;
+  --splabs-container-radius: 8px;
+}
+
+/* ─── Chip Container ────────────────────────────────────────────────────── */
+
+.splabs-chip-container {
+  margin: 6px 0 0 0;
+  padding: 6px 8px;
+  border-radius: var(--splabs-container-radius);
+  border: 0.5px solid rgba(0, 0, 0, 0.08);
+  background: rgba(0, 0, 0, 0.02);
+  font-family: var(--splabs-font);
+  font-size: var(--splabs-chip-font-size);
+  line-height: 1.4;
+  display: block;
+  box-sizing: border-box;
+}
+
+.splabs-chip-container.splabs-drm-critical {
+  border-color: rgba(192, 57, 43, 0.3);
+  background: rgba(255, 213, 213, 0.15);
+}
+
+/* ─── Chip Rows ─────────────────────────────────────────────────────────── */
+
+.splabs-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.splabs-row:last-child {
+  margin-bottom: 0;
+}
+
+.splabs-collapsed {
+  display: none !important;
+}
+
+/* ─── Base Chip ─────────────────────────────────────────────────────────── */
+
+.splabs-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--splabs-chip-padding);
+  border-radius: var(--splabs-chip-radius);
+  font-family: var(--splabs-font);
+  font-size: var(--splabs-chip-font-size);
+  font-weight: 500;
+  line-height: 1.5;
+  white-space: nowrap;
+  cursor: default;
+  background: #f0f0ee;
+  color: #555;
+  border: 0.5px solid rgba(0, 0, 0, 0.06);
+  transition: opacity 0.15s;
+  user-select: none;
+}
+
+.splabs-chip:hover {
+  opacity: 0.85;
+}
+
+/* ─── ACT Alert Chips ───────────────────────────────────────────────────── */
+
+.splabs-chip.act-GREEN,
+.splabs-chip.act-green {
+  background: #eaf3de;
+  color: #3b6d11;
+}
+
+.splabs-chip.act-YELLOW,
+.splabs-chip.act-yellow {
+  background: #faeeda;
+  color: #854f0b;
+}
+
+.splabs-chip.act-RED,
+.splabs-chip.act-red {
+  background: #fcebeb;
+  color: #a32d2d;
+}
+
+/* ─── DRM Chips ─────────────────────────────────────────────────────────── */
+
+.splabs-chip.drm-green { background: #eaf3de; color: #3b6d11; }
+.splabs-chip.drm-yellow { background: #faeeda; color: #854f0b; }
+.splabs-chip.drm-orange { background: #fde8d0; color: #7a3800; }
+.splabs-chip.drm-red { background: #fcebeb; color: #a32d2d; }
+.splabs-chip.drm-critical {
+  background: #ffd5d5;
+  color: #7b0000;
+  font-weight: 600;
+}
+
+/* DRM Badge (clickable) */
+.splabs-drm-badge {
+  cursor: pointer !important;
+}
+
+.splabs-drm-badge:hover {
+  opacity: 0.75;
+  text-decoration: underline;
+}
+
+/* ─── IRS Chips ─────────────────────────────────────────────────────────── */
+
+.splabs-chip.irs-none    { background: #f5f5f3; color: #9a9a9a; }
+.splabs-chip.irs-low     { background: #eaf3de; color: #3b6d11; }
+.splabs-chip.irs-medium  { background: #faeeda; color: #854f0b; }
+.splabs-chip.irs-high    { background: #fcebeb; color: #a32d2d; }
+.splabs-chip.irs-critical { background: #ffd5d5; color: #7b0000; font-weight: 600; }
+
+/* ─── RAG Chips ─────────────────────────────────────────────────────────── */
+
+.splabs-chip.rag-none    { background: #f5f5f3; color: #9a9a9a; }
+.splabs-chip.rag-low     { background: #eaf3de; color: #3b6d11; }
+.splabs-chip.rag-medium  { background: #faeeda; color: #854f0b; }
+.splabs-chip.rag-high    { background: #fcebeb; color: #a32d2d; }
+.splabs-chip.rag-critical { background: #ffd5d5; color: #7b0000; font-weight: 600; }
+.splabs-chip.rag-unknown { background: #f5f5f3; color: #9a9a9a; }
+
+/* ─── PSA Alert Chips ───────────────────────────────────────────────────── */
+
+.splabs-chip.psa-green   { background: #eaf3de; color: #3b6d11; }
+.splabs-chip.psa-yellow  { background: #faeeda; color: #854f0b; }
+.splabs-chip.psa-red     { background: #fcebeb; color: #a32d2d; }
+.splabs-chip.psa-critical { background: #ffd5d5; color: #7b0000; font-weight: 600; }
+.splabs-chip.psa-unknown { background: #f0f0ee; color: #666; }
+
+/* ─── User ACT ──────────────────────────────────────────────────────────── */
+
+.splabs-chip.user-act-orange { background: #fde8d0; color: #7a3800; }
+.splabs-chip.user-act-green  { background: #eaf3de; color: #3b6d11; }
+.splabs-chip.user-act-yellow { background: #faeeda; color: #854f0b; }
+.splabs-chip.user-act-red    { background: #fcebeb; color: #a32d2d; }
+
+.splabs-chip.staccato-high { background: #fde8d0; color: #7a3800; }
+
+/* ─── IRS Dimension Chips ───────────────────────────────────────────────── */
+
+.splabs-chip.suicidality  { background: #ffd5d5; color: #7b0000; }
+.splabs-chip.dissociation { background: #faeeda; color: #854f0b; }
+.splabs-chip.grandiosity  { background: #fde8d0; color: #7a3800; }
+.splabs-chip.urgency      { background: #fcebeb; color: #a32d2d; }
+
+/* ─── Special Chips ─────────────────────────────────────────────────────── */
+
+.splabs-chip.splabs-chip-loading {
+  background: #f5f5f3;
+  color: #888;
+  animation: splabs-pulse 1.2s infinite;
+}
+
+@keyframes splabs-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.splabs-chip.splabs-chip-warn {
+  background: #faeeda;
+  color: #854f0b;
+}
+
+.splabs-chip.splabs-chip-error {
+  background: #f5f5f3;
+  color: #888;
+}
+
+.splabs-chip.inc-flag {
+  background: #ffd5d5;
+  color: #7b0000;
+}
+
+/* ─── Progress Bar ──────────────────────────────────────────────────────── */
+
+.splabs-bar {
+  display: inline-block;
+  height: 3px;
+  background: currentColor;
+  opacity: 0.5;
+  border-radius: 2px;
+  vertical-align: middle;
+  margin-left: 4px;
+  max-width: 80px;
+  min-width: 2px;
+}
+
+/* ─── Classifier Chips ──────────────────────────────────────────────────── */
+
+.splabs-chip.splabs-classifier {
+  cursor: help;
+}
+
+/* ─── Explanation Area ──────────────────────────────────────────────────── */
+
+.splabs-explanation {
+  margin-top: 6px;
+  padding: 6px 8px;
+  background: rgba(0, 0, 0, 0.03);
+  border-radius: 4px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: #444;
+}
+
+.splabs-exp-loading {
+  color: #888;
+  font-style: italic;
+}
+
+.splabs-exp-error {
+  color: #a32d2d;
+}
+
+.splabs-exp-text {
+  color: #333;
+}
+
+/* ─── Explain Button ────────────────────────────────────────────────────── */
+
+.splabs-explain-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-family: var(--splabs-font);
+  font-size: 11px;
+  font-weight: 500;
+  background: #1a1d27;
+  color: white;
+  border: none;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.splabs-explain-btn:hover { opacity: 0.8; }
+.splabs-explain-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ─── Toggle Button ─────────────────────────────────────────────────────── */
+
+.splabs-toggle {
+  display: inline-flex;
+  align-items: center;
+  margin-top: 4px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-family: var(--splabs-font);
+  font-size: 10px;
+  font-weight: 500;
+  background: transparent;
+  color: #888;
+  border: 0.5px solid rgba(0, 0, 0, 0.12);
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.splabs-toggle:hover {
+  color: #555;
+  border-color: rgba(0, 0, 0, 0.25);
+}
+
+/* ─── Sidebar Toggle Button ─────────────────────────────────────────────── */
+
+#splabs-sidebar-toggle {
+  position: fixed;
+  bottom: 80px;
+  right: 16px;
+  z-index: 9999;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #1a1d27;
+  color: white;
+  font-size: 10px;
+  font-family: var(--splabs-font);
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.15s, box-shadow 0.15s;
+  letter-spacing: 0.03em;
+}
+
+#splabs-sidebar-toggle:hover {
+  transform: scale(1.08);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+/* ─── User Trend Chips ──────────────────────────────────────────────────── */
+
+.splabs-chip.user-trend-rising  { background: #fcebeb; color: #a32d2d; }
+.splabs-chip.user-trend-falling { background: #eaf3de; color: #3b6d11; }
+.splabs-chip.user-trend-stable  { background: #f0f0ee; color: #666; }
+
+/* ─── Text Accordion ────────────────────────────────────────────────────── */
+
+.splabs-text-body {
+  margin-top: 6px;
+  padding: 7px 9px;
+  background: rgba(0, 0, 0, 0.025);
+  border-radius: 4px;
+  border: 0.5px solid rgba(0, 0, 0, 0.06);
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.splabs-text-content {
+  font-size: 12px;
+  line-height: 1.65;
+  color: #3a3a3a;
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+
+/* C1 sentence posture coloring — subtle left border + faint background */
+.splabs-sentence {
+  display: inline;
+  border-radius: 2px;
+  padding: 1px 0;
+}
+
+.splabs-p0        { /* normal — no highlight */ }
+.splabs-p-restrict { background: rgba(59, 130, 246, 0.07); border-bottom: 1.5px solid rgba(59, 130, 246, 0.25); }
+.splabs-p-stress   { background: rgba(202, 138, 4,   0.08); border-bottom: 1.5px solid rgba(202, 138, 4, 0.30); }
+.splabs-p-comply   { background: rgba(220, 60,  60,  0.07); border-bottom: 1.5px solid rgba(220, 60, 60, 0.25); }
+
+/* Legend row above colored text */
+.splabs-text-legend {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 5px;
+  flex-wrap: wrap;
+}
+
+.splabs-legend-item {
+  font-size: 10px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-family: var(--splabs-font);
+  color: #555;
+}
+
+.splabs-legend-item.splabs-p-restrict { background: rgba(59, 130, 246, 0.10); border-bottom: 1.5px solid rgba(59, 130, 246, 0.30); }
+.splabs-legend-item.splabs-p-stress   { background: rgba(202, 138, 4,   0.10); border-bottom: 1.5px solid rgba(202, 138, 4, 0.35); }
+.splabs-legend-item.splabs-p-comply   { background: rgba(220, 60,  60,  0.10); border-bottom: 1.5px solid rgba(220, 60, 60, 0.30); }
+
+.splabs-text-toggle {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-family: var(--splabs-font);
+  font-size: 10px;
+  font-weight: 500;
+  background: transparent;
+  color: #888;
+  border: 0.5px solid rgba(0, 0, 0, 0.12);
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.splabs-text-toggle:hover {
+  color: #555;
+  border-color: rgba(0, 0, 0, 0.25);
+}
+
+/* ─── Dark Mode ─────────────────────────────────────────────────────────── */
+
+@media (prefers-color-scheme: dark) {
+  .splabs-chip-container {
+    border-color: rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.03);
+  }
+
+  .splabs-chip-container.splabs-drm-critical {
+    border-color: rgba(255, 100, 100, 0.25);
+    background: rgba(255, 100, 100, 0.07);
+  }
+
+  .splabs-chip {
+    background: rgba(255, 255, 255, 0.07);
+    color: #ccc;
+    border-color: rgba(255, 255, 255, 0.06);
+  }
+
+  /* ACT */
+  .splabs-chip.act-GREEN, .splabs-chip.act-green     { background: rgba(58, 140, 0, 0.18);  color: #a8d878; }
+  .splabs-chip.act-YELLOW, .splabs-chip.act-yellow   { background: rgba(200, 130, 0, 0.18); color: #f0c060; }
+  .splabs-chip.act-RED, .splabs-chip.act-red         { background: rgba(200, 50, 50, 0.18); color: #f08080; }
+
+  /* DRM */
+  .splabs-chip.drm-green    { background: rgba(58, 140, 0, 0.18);  color: #a8d878; }
+  .splabs-chip.drm-yellow   { background: rgba(200, 130, 0, 0.18); color: #f0c060; }
+  .splabs-chip.drm-orange   { background: rgba(220, 100, 0, 0.18); color: #f09840; }
+  .splabs-chip.drm-red      { background: rgba(200, 50, 50, 0.18); color: #f08080; }
+  .splabs-chip.drm-critical { background: rgba(180, 0, 0, 0.25);   color: #ffaaaa; font-weight: 600; }
+
+  /* IRS */
+  .splabs-chip.irs-none     { background: rgba(255,255,255,0.05); color: #777; }
+  .splabs-chip.irs-low      { background: rgba(58, 140, 0, 0.18);  color: #a8d878; }
+  .splabs-chip.irs-medium   { background: rgba(200, 130, 0, 0.18); color: #f0c060; }
+  .splabs-chip.irs-high     { background: rgba(200, 50, 50, 0.18); color: #f08080; }
+  .splabs-chip.irs-critical { background: rgba(180, 0, 0, 0.25);   color: #ffaaaa; }
+
+  /* RAG */
+  .splabs-chip.rag-none     { background: rgba(255,255,255,0.05); color: #777; }
+  .splabs-chip.rag-low      { background: rgba(58, 140, 0, 0.18);  color: #a8d878; }
+  .splabs-chip.rag-medium   { background: rgba(200, 130, 0, 0.18); color: #f0c060; }
+  .splabs-chip.rag-high     { background: rgba(200, 50, 50, 0.18); color: #f08080; }
+  .splabs-chip.rag-critical { background: rgba(180, 0, 0, 0.25);   color: #ffaaaa; }
+  .splabs-chip.rag-unknown  { background: rgba(255,255,255,0.05); color: #777; }
+
+  /* User */
+  .splabs-chip.user-act-green  { background: rgba(58, 140, 0, 0.18);  color: #a8d878; }
+  .splabs-chip.user-act-yellow { background: rgba(200, 130, 0, 0.18); color: #f0c060; }
+  .splabs-chip.user-act-orange { background: rgba(220, 100, 0, 0.18); color: #f09840; }
+  .splabs-chip.user-act-red    { background: rgba(200, 50, 50, 0.18); color: #f08080; }
+  .splabs-chip.staccato-high   { background: rgba(220, 100, 0, 0.18); color: #f09840; }
+
+  /* IRS dims */
+  .splabs-chip.suicidality  { background: rgba(180, 0, 0, 0.25);   color: #ffaaaa; }
+  .splabs-chip.dissociation { background: rgba(200, 130, 0, 0.18); color: #f0c060; }
+  .splabs-chip.grandiosity  { background: rgba(220, 100, 0, 0.18); color: #f09840; }
+  .splabs-chip.urgency      { background: rgba(200, 50, 50, 0.18); color: #f08080; }
+
+  .splabs-chip.inc-flag     { background: rgba(180, 0, 0, 0.25);   color: #ffaaaa; }
+
+  /* Misc */
+  .splabs-chip.splabs-chip-loading { background: rgba(255,255,255,0.06); color: #666; }
+  .splabs-chip.splabs-chip-warn    { background: rgba(200,130,0,0.18);  color: #f0c060; }
+
+  .splabs-explanation {
+    background: rgba(255, 255, 255, 0.04);
+    color: #bbb;
+  }
+
+  .splabs-exp-text  { color: #ccc; }
+  .splabs-exp-error { color: #f08080; }
+
+  .splabs-toggle, .splabs-text-toggle {
+    color: #666;
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .splabs-toggle:hover, .splabs-text-toggle:hover {
+    color: #aaa;
+    border-color: rgba(255, 255, 255, 0.25);
+  }
+
+  /* User trend */
+  .splabs-chip.user-trend-rising  { background: rgba(200, 50, 50, 0.18);  color: #f08080; }
+  .splabs-chip.user-trend-falling { background: rgba(58, 140, 0, 0.18);   color: #a8d878; }
+  .splabs-chip.user-trend-stable  { background: rgba(255,255,255,0.07);   color: #999; }
+
+  /* Text accordion */
+  .splabs-text-body {
+    background: rgba(255, 255, 255, 0.03);
+    border-color: rgba(255, 255, 255, 0.06);
+  }
+
+  .splabs-text-content { color: #c0c0c0; }
+
+  .splabs-p-restrict { background: rgba(96, 165, 250, 0.08);  border-bottom-color: rgba(96, 165, 250, 0.30); }
+  .splabs-p-stress   { background: rgba(251, 191, 36, 0.08);  border-bottom-color: rgba(251, 191, 36, 0.30); }
+  .splabs-p-comply   { background: rgba(248, 113, 113, 0.08); border-bottom-color: rgba(248, 113, 113, 0.30); }
+
+  .splabs-legend-item { color: #888; }
+  .splabs-legend-item.splabs-p-restrict { background: rgba(96, 165, 250, 0.10);  border-bottom-color: rgba(96, 165, 250, 0.35); }
+  .splabs-legend-item.splabs-p-stress   { background: rgba(251, 191, 36, 0.10);  border-bottom-color: rgba(251, 191, 36, 0.35); }
+  .splabs-legend-item.splabs-p-comply   { background: rgba(248, 113, 113, 0.10); border-bottom-color: rgba(248, 113, 113, 0.35); }
+}

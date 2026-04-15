@@ -1,0 +1,52 @@
+{
+  "manifest_version": 3,
+  "name": "Silicon Psyche ACT Monitor",
+  "version": "1.0.0",
+  "description": "Real-time behavioral analysis of claude.ai conversations using the splabs.io ACT+PSA+IRS+RAG+DRM stack.",
+  "permissions": [
+    "storage",
+    "activeTab",
+    "scripting",
+    "tabs"
+  ],
+  "host_permissions": [
+    "https://claude.ai/*",
+    "https://splabs.io/*",
+    "https://openrouter.ai/*"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://claude.ai/*"],
+      "js": ["content.js"],
+      "css": ["content.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "options_ui": {
+    "page": "admin.html",
+    "open_in_tab": true
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["sidebar.html", "chart.min.js", "icons/*.png"],
+      "matches": ["https://claude.ai/*"]
+    }
+  ]
+}

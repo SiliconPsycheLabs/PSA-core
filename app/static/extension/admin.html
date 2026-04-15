@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Silicon Psyche — Settings</title>
+  <link rel="stylesheet" href="admin.css">
+</head>
+<body>
+  <div class="adm-container">
+    <!-- Header -->
+    <header class="adm-header">
+      <span class="adm-logo">⬡</span>
+      <div>
+        <div class="adm-title">Silicon Psyche Monitor</div>
+        <div class="adm-subtitle">Extension Settings</div>
+      </div>
+    </header>
+
+    <!-- ── API Keys ───────────────────────────────────────────────────────── -->
+    <section class="adm-section">
+      <h2 class="adm-section-title">API Keys</h2>
+
+      <!-- splabs.io Key -->
+      <div class="adm-field-group">
+        <label class="adm-label" for="splabs-key">splabs.io API Key</label>
+        <div class="adm-input-row">
+          <input type="password" id="splabs-key" class="adm-input"
+                 placeholder="act_…" autocomplete="off" spellcheck="false">
+          <button class="adm-btn adm-btn-sm" id="splabs-test-btn">Test ↗</button>
+        </div>
+        <div class="adm-hint">Used for ACT, PSA, IRS, RAG, and DRM analysis.</div>
+        <div class="adm-status" id="splabs-status"></div>
+      </div>
+
+      <!-- OpenRouter Key -->
+      <div class="adm-field-group">
+        <label class="adm-label" for="or-key">OpenRouter API Key</label>
+        <div class="adm-input-row">
+          <input type="password" id="or-key" class="adm-input"
+                 placeholder="sk-or-…" autocomplete="off" spellcheck="false">
+          <button class="adm-btn adm-btn-sm" id="or-test-btn">Test ↗</button>
+        </div>
+        <div class="adm-hint">Used for natural-language explanations of behavioral data.</div>
+        <div class="adm-status" id="or-status"></div>
+      </div>
+
+      <!-- OpenRouter Model -->
+      <div class="adm-field-group">
+        <label class="adm-label" for="or-model">OpenRouter Model</label>
+        <div class="adm-input-row">
+          <select id="or-model-select" class="adm-input adm-select">
+            <option value="mistralai/mistral-7b-instruct">mistralai/mistral-7b-instruct (default)</option>
+            <option value="openai/gpt-4o-mini">openai/gpt-4o-mini</option>
+            <option value="anthropic/claude-haiku">anthropic/claude-haiku</option>
+            <option value="custom">Custom…</option>
+          </select>
+        </div>
+        <div id="or-model-custom-wrap" class="adm-input-row" style="display:none;margin-top:6px">
+          <input type="text" id="or-model-custom" class="adm-input"
+                 placeholder="provider/model-name" autocomplete="off">
+        </div>
+        <div class="adm-hint">Model used for explanation generation.</div>
+      </div>
+    </section>
+
+    <!-- ── Analysis Settings ──────────────────────────────────────────────── -->
+    <section class="adm-section">
+      <h2 class="adm-section-title">Analysis Settings</h2>
+
+      <div class="adm-toggle-group">
+        <label class="adm-toggle-row">
+          <span class="adm-toggle-label">
+            Analyze user messages
+            <span class="adm-toggle-hint">Enables IRS/user ACT on human turns</span>
+          </span>
+          <input type="checkbox" id="toggle-user-turns" class="adm-toggle-cb" checked>
+          <span class="adm-toggle-switch"></span>
+        </label>
+
+        <label class="adm-toggle-row">
+          <span class="adm-toggle-label">
+            Show IRS dimensions on user chips
+            <span class="adm-toggle-hint">Suicidality / dissociation / grandiosity / urgency</span>
+          </span>
+          <input type="checkbox" id="toggle-irs-dims" class="adm-toggle-cb" checked>
+          <span class="adm-toggle-switch"></span>
+        </label>
+
+        <label class="adm-toggle-row">
+          <span class="adm-toggle-label">
+            Auto-expand critical turns in sidebar
+            <span class="adm-toggle-hint">DRM CRITICAL turns open automatically</span>
+          </span>
+          <input type="checkbox" id="toggle-auto-expand" class="adm-toggle-cb" checked>
+          <span class="adm-toggle-switch"></span>
+        </label>
+
+        <label class="adm-toggle-row">
+          <span class="adm-toggle-label">
+            Show Explain button
+            <span class="adm-toggle-hint">Requires OpenRouter API key</span>
+          </span>
+          <input type="checkbox" id="toggle-explain" class="adm-toggle-cb" checked>
+          <span class="adm-toggle-switch"></span>
+        </label>
+      </div>
+
+      <div class="adm-field-group" style="margin-top:12px">
+        <label class="adm-label" for="explain-threshold">Show Explain when DRM is at least…</label>
+        <select id="explain-threshold" class="adm-input adm-select" style="max-width:220px">
+          <option value="yellow">Yellow</option>
+          <option value="orange" selected>Orange</option>
+          <option value="red">Red</option>
+          <option value="critical">Critical only</option>
+        </select>
+      </div>
+    </section>
+
+    <!-- ── Session Management ─────────────────────────────────────────────── -->
+    <section class="adm-section">
+      <h2 class="adm-section-title">Session Management</h2>
+
+      <div class="adm-field-group">
+        <label class="adm-label">Current Session ID</label>
+        <div class="adm-code" id="current-session-id">Loading…</div>
+      </div>
+
+      <div class="adm-btn-row">
+        <button class="adm-btn adm-btn-danger" id="clear-session-btn">↺ Clear Session</button>
+        <button class="adm-btn" id="export-json-btn">⬇ Export JSON</button>
+        <button class="adm-btn" id="export-html-btn">⬇ Export HTML Dashboard</button>
+      </div>
+
+      <div class="adm-status" id="session-status"></div>
+    </section>
+
+    <!-- ── About ──────────────────────────────────────────────────────────── -->
+    <section class="adm-section">
+      <h2 class="adm-section-title">About</h2>
+      <div class="adm-about">
+        <p><strong>Silicon Psyche ACT Monitor</strong> v1.0.0</p>
+        <p>Real-time behavioral analysis for claude.ai using the splabs.io ACT+PSA+IRS+RAG+DRM stack.</p>
+        <p style="margin-top:8px">
+          <a href="https://splabs.io" target="_blank" class="adm-link">splabs.io</a> ·
+          <a href="https://github.com/SiliconPsycheLabs/ACT-core" target="_blank" class="adm-link">ACT-core on GitHub</a>
+        </p>
+      </div>
+    </section>
+
+    <!-- Save Button -->
+    <div class="adm-save-bar">
+      <button class="adm-btn adm-btn-primary" id="save-btn">Save Settings</button>
+      <span class="adm-save-status" id="save-status"></span>
+    </div>
+  </div>
+
+  <script src="admin.js"></script>
+</body>
+</html>

@@ -127,10 +127,8 @@ psa/
 │   │   ├── psa_models.py        # PsaPosture, PsaSession, SIGTRACKIncident
 │   │   └── chaos_models.py      # ChaosProvider, ChaosRun
 │   ├── templates/               # Jinja2 HTML (PSA dashboards only)
-│   ├── static/
-│   │   ├── extension/           # Browser extension (MV3 Chrome) for real-time monitoring
-│   │   ├── css/                 # Tailwind CSS
-│   │   └── js/                  # Frontend logic
+│   └── static/
+│       └── extension/           # Browser extension (MV3 Chrome) for real-time monitoring
 │
 ├── psa/                         # PSA v2 engine
 ├── psa_v3/                      # PSA v3 multi-agent engine
@@ -330,6 +328,10 @@ PSA includes a Chrome Manifest V3 extension for real-time monitoring and analysi
 - `sidebar.html/js/css` — Dashboard UI with Chart.js visualization
 - `admin.html/js/css` — Settings and configuration panel
 - `popup.html/js/css` — Quick status view
+- `icons/` — Extension icons (16, 48, 128px)
+- `chart.min.js` — Chart.js library for visualization
+- `INSTALL.md` — Installation instructions
+- `README.md` — Extension documentation
 
 ---
 
