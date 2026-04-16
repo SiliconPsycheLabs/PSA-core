@@ -20,70 +20,32 @@ PSA-core is the standalone engine that powers [PSA](https://github.com/SiliconPs
 
 ## Requirements
 
-```
-numpy
-onnxruntime          # recommended
-transformers         # HuggingFace tokenizer
-sentence-transformers # fallback when encoder.onnx is absent
-```
-
-```bash
-git clone https://github.com/SiliconPsycheLabs/PSA.git
-cd PSA
-pip install -r requirements.txt
-```
+API key from [splabs.io/settings](https://splabs.io/settings) — Pro or Enterprise plan.
 
 ---
 
 ## Quick Start
 
-```python
-from psa.minilm_classifier import load_minilm_model
-from psa.splitter import split_sentences
-from psa.metrics import (
-    posture_oscillation_index, sycophancy_density,
-    hallucination_risk_index, persuasion_density,
-    technique_diversity, behavioral_health_score
-)
-
-# Load classifiers
-c1 = load_minilm_model("c1")  # Adversarial stress
-c2 = load_minilm_model("c2")  # Sycophancy
-c3 = load_minilm_model("c3")  # Hallucination risk
-c4 = load_minilm_model("c4")  # Persuasion
-
-# Split and classify
-response = "I understand your concern. That's a great point, actually..."
-sentences = split_sentences(response)
-
-c1_results = c1.classify_response(sentences)  # [(label, confidence), ...]
-c2_results = c2.classify_response(sentences)
-c3_results = c3.classify_response(sentences)
-c4_results = c4.classify_response(sentences)
-
-# Extract posture indices (P0->0, S0->0, H0->0, M0->0)
-c1_postures = [int(lbl[1:]) for lbl, _ in c1_results]
-c2_postures = [int(lbl[1:]) for lbl, _ in c2_results]
-c2_confs    = [conf for _, conf in c2_results]
-c3_postures = [int(lbl[1:]) for lbl, _ in c3_results]
-c4_postures = [int(lbl[1:]) for lbl, _ in c4_results]
-
-# Compute metrics
-poi     = posture_oscillation_index(c1_postures)
-sd      = sycophancy_density(c2_postures, c2_confs)
-hri     = hallucination_risk_index(c3_postures)
-pd_val  = persuasion_density(c4_postures)
-td_val  = technique_diversity(c4_postures)
-
-bhs = behavioral_health_score(
-    poi=poi,
-    sd=sd,
-    hri_norm=min(hri / 10.0, 1.0),
-    pd=pd_val,
-    td_norm=min(td_val / 5.0, 1.0)
-)
-print(f"BHS: {bhs:.2f}")
+```bash
+curl -X POST https://splabs.io/api/v2/psa/analyze \
+  -H "Authorization: Bearer psa_your_key" \
+  -H "Content-Type: application/json" \
+  -d '{"response_text": "Of course, I would be happy to help!", "dry_run": true}'
 ```
+
+```json
+{
+  "c1": { "postures": [5], "poi": 0.0, "pe": 0.0, "dpi": 0.31, "mps": 0 },
+  "c2": { "postures": [2], "sd": 0.82 },
+  "c3": { "postures": [0], "hri": 0.0 },
+  "c4": { "postures": [0], "pd": 0.0, "td": 0 },
+  "bhs": 0.67,
+  "alert": "yellow",
+  "dry_run": true
+}
+```
+
+See [API.md](API.md) for the full endpoint reference.
 
 ---
 
@@ -140,53 +102,7 @@ Session-level engine combining IRS, RAS, PSA metrics, and BCS slope:
 | R5-Silence | Red | High CPI, near-zero POI |
 | R6-Spiraling | Orange | BCS slope > 0.05/turn AND SD_avg > 0.30 AND IRS ≥ medium |
 
-```
-psa/
-├── README.md
-├── requirements.txt
-├── Dockerfile
-├── .env.example
-│
-├── app/
-│   ├── main.py                  # FastAPI entry point
-│   ├── config.py                # Settings (PSA_PORT, PSA_DEBUG, etc.)
-│   ├── auth/                    # JWT auth, password reset
-│   ├── dashboard/               # HTML page routes
-│   ├── api/
-│   │   ├── sessions.py          # Session CRUD + PSA posture data
-│   │   ├── batch.py             # CSV/TSV/JSON batch import (SSE)
-│   │   ├── keys.py              # API key management (psa_ prefix)
-│   │   ├── public.py            # Public API v1
-│   │   ├── public_sessions.py   # /v1/sessions — PSA-enriched
-│   │   ├── insights.py          # Cross-session analytics (PSA data)
-│   │   ├── regime.py            # Regime shift detection endpoint
-│   │   ├── psa_summary.py       # Session-level PSA summary endpoint
-│   │   ├── sigtrack.py          # SIGTRACK v2 incident archive
-│   │   ├── stream.py            # SSE real-time stream
-│   │   ├── middleware.py        # Auth (psa_token / Bearer psa_)
-│   │   ├── admin.py             # Admin user management
-│   │   ├── admin_stats.py       # System stats (PSA posture counts)
-│   │   ├── test_engine.py       # Admin PSA engine testing
-│   │   └── chaos.py             # Silicon Chaos endpoints
-│   ├── payments/                # Stripe billing
-│   ├── email/                   # Resend email + templates
-│   ├── db/
-│   │   ├── models.py            # User, Session, ApiKey, Payment
-│   │   ├── psa_models.py        # PsaPosture, PsaSession, SIGTRACKIncident
-│   │   └── chaos_models.py      # ChaosProvider, ChaosRun
-│   ├── templates/               # Jinja2 HTML (PSA dashboards only)
-│   └── static/
-│       └── extension/           # Browser extension (MV3 Chrome) for real-time monitoring
-│
-├── psa/                         # PSA v2 engine
-├── psa_v3/                      # PSA v3 multi-agent engine
-├── forge/                       # Synthetic training data generator
-├── chaos/                       # Silicon Chaos framework
-├── demo/                        # Demo data + seed scripts
-└── scripts/
-    ├── init_db.sql              # PSA-only schema (no turns/baselines)
-    └── run_migration.py
-```
+R6-Spiraling detects a feedback loop: user grows more certain (rising BCS) while the model grows more sycophantic (rising SD).
 
 ---
 
