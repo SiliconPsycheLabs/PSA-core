@@ -1,96 +1,144 @@
-# PSA — Posture Sequence Analysis
+# PSA-core — Posture Sequence Analysis Engine
 
-**Multi-classifier behavioral analysis engine for LLM responses.**
+Multi-classifier behavioral analysis engine for LLM responses.
 
-PSA measures what a language model is doing — from the outside. It classifies every AI response into behavioral postures, then derives metrics from posture sequences to detect adversarial stress, sycophancy, hallucination risk, persuasion techniques, and input pressure — in real time.
+PSA-core is the standalone engine that powers [PSA](https://github.com/SiliconPsycheLabs/PSA). It classifies every AI response into behavioral postures, then derives metrics from posture sequences to detect adversarial stress, sycophancy, hallucination risk, persuasion techniques, and input pressure — in real time.
 
----
-
-## What Is PSA?
-
-Organizations deploy language models they cannot inspect. The model is a black box. PSA provides instruments to classify, measure, and track the model's behavioral posture over time — without access to weights, logits, or training data.
-
-PSA is three things:
-
-| Component | Function | Analogy |
-|-----------|----------|---------|
-| **PSA v2** (posture) | Single-agent posture classification — 5 micro-classifiers (C0–C4) for adversarial stress, sycophancy, hallucination risk, persuasion techniques, input pressure; DRM engine with session-level dyadic risk | Behavioral EKG |
-| **PSA v3** (agentic) | Multi-agent analysis — Swiss Cheese alignment detection, cross-agent contagion metrics, action-risk classification (C5), temporal prediction (HMM) | Systemic risk radar |
-| **Silicon Chaos** | LLM behavioral stress-testing — adversarial multi-agent runs with real-time PSA scoring | Red team automation |
-
-Together they answer: *What posture is this model in? Is it stable? Has it shifted? In multi-agent systems: do weaknesses align across agents?*
-
-### Use Cases
-
-- **Model auditing** — Does the model maintain consistent behavioral boundaries under pressure?
-- **Vendor evaluation** — Given identical stimuli, how do two models differ in posture?
-- **Version regression testing** — The vendor updated the model. What posture changed?
-- **Compliance monitoring** — Continuous verification that behavioral posture requirements are met.
-- **Incident forensics** — SIGTRACK v2 archives posture sequences for post-incident analysis (no raw text).
+> For the full web application (FastAPI, dashboards, billing, REST API), see the [PSA repository](https://github.com/SiliconPsycheLabs/PSA).
 
 ---
 
-## PSA v2 Classifiers
+## Components
 
-PSA v2 defines 5 micro-classifiers sharing 32-dim sentence embeddings:
-
-| Classifier | Name | What It Measures |
-|-----------|------|-----------------|
-| **C0** | Baseline Coherence | Structural health — fluency, coherence, on-topic ratio |
-| **C1** | Posture of Influence (POI) | Adversarial stress — boundary erosion under persuasion |
-| **C2** | Sycophancy Delta (SD) | Sycophancy — agreement creep, validation seeking |
-| **C3** | Hallucination Risk Index (HRI) | Confabulation signals — hedging collapse, overconfidence |
-| **C4** | Persuasion Density (PD) | Persuasion techniques — reciprocity, authority, scarcity framing |
-
-**BHS (Behavioral Health Score):** Composite of C0–C4. Range 0.0–1.0. Green ≥ 0.7, Yellow ≥ 0.5, Orange ≥ 0.3, Red ≥ 0.15, Critical < 0.15.
-
-**DRM (Dyadic Risk Module):** Session-level engine. Scores user input for IRS (Input Risk Score) and RAS (Response Alignment Score), then computes DRM alert from 6 rules including R6-Spiraling (detects rising user dogmatism + bot sycophancy via BCS slope).
+| Component | Function |
+|-----------|----------|
+| **PSA v2** | 5 micro-classifiers (C0–C4), DRM session-level risk engine, SIGTRACK v2 incident archive |
+| **PSA v3** | Multi-agent analysis — Swiss Cheese detection, contagion metrics, action-risk (C5), HMM prediction |
+| **Browser Extension** | Chrome MV3 — real-time PSA monitoring of AI conversations |
 
 ---
 
-## Regime Shifts
+## Requirements
 
-PSA classifies five types of behavioral regime shift:
+```
+numpy
+onnxruntime          # recommended
+transformers         # HuggingFace tokenizer
+sentence-transformers # fallback when encoder.onnx is absent
+```
 
-| Type | Pattern | What It Means |
-|------|---------|---------------|
-| Progressive Drift | Slow, monotonic BHS decline | Boundaries eroding under context pressure |
-| Boundary Oscillation | Alternating between posture modes | Unstable boundary — behavior is unreliable here |
-| Acute Collapse | Sudden BHS discontinuity | Categorical vulnerability — specific input triggers shift |
-| Sub-Threshold Migration | Below per-turn thresholds, visible only long-term | Silent drift — needs multi-session view to detect |
-| Boundary Instability | High variance on C1-POI (std > 0.25) | No stable boundary — training gap in this domain |
-
----
-
-## SIGTRACK v2
-
-Privacy-compliant incident archive. Stores posture sequences, not raw text.
-
-- **Triggers:** DRM_RED, BCS_SPIKE (>0.5 BHS drop), CONSECUTIVE_ORANGE (3+), ACUTE_COLLAPSE, MANUAL_FLAG
-- **GDPR erasure:** Single row DELETE — no cascade, no raw text to scrub
-- **Retention:** Configurable per deployment
+```bash
+git clone https://github.com/SiliconPsycheLabs/PSA.git
+cd PSA
+pip install -r requirements.txt
+```
 
 ---
 
-## Architecture
+## Quick Start
 
-- **Backend:** Python / FastAPI
-- **Frontend:** HTML + CSS + vanilla JS + Chart.js
-- **Database:** PostgreSQL (external, via `DATABASE_URL`)
-- **PSA v2:** `psa/` — 5 micro-classifiers, DRM, SIGTRACK v2
-- **PSA v3:** `psa_v3/` — multi-agent graph, Swiss Cheese, HMM
-- **Forge:** `forge/` — synthetic PSA training data generator
-- **Chaos:** `chaos/` — Silicon Chaos adversarial stress-testing
-- **Auth:** JWT + bcrypt, httponly `psa_token` cookie + `psa_` API keys
-- **Payments:** Stripe Pro/Enterprise
-- **Real-time:** SSE for live analysis feed
-- **Deploy:** Single Docker container + external Postgres
+```python
+from psa.minilm_classifier import load_minilm_model
+from psa.splitter import split_sentences
+from psa.metrics import (
+    posture_oscillation_index, sycophancy_density,
+    hallucination_risk_index, persuasion_density,
+    technique_diversity, behavioral_health_score
+)
 
-No Node.js. No React. No build step. One Python runtime.
+# Load classifiers
+c1 = load_minilm_model("c1")  # Adversarial stress
+c2 = load_minilm_model("c2")  # Sycophancy
+c3 = load_minilm_model("c3")  # Hallucination risk
+c4 = load_minilm_model("c4")  # Persuasion
+
+# Split and classify
+response = "I understand your concern. That's a great point, actually..."
+sentences = split_sentences(response)
+
+c1_results = c1.classify_response(sentences)  # [(label, confidence), ...]
+c2_results = c2.classify_response(sentences)
+c3_results = c3.classify_response(sentences)
+c4_results = c4.classify_response(sentences)
+
+# Extract posture indices (P0->0, S0->0, H0->0, M0->0)
+c1_postures = [int(lbl[1:]) for lbl, _ in c1_results]
+c2_postures = [int(lbl[1:]) for lbl, _ in c2_results]
+c2_confs    = [conf for _, conf in c2_results]
+c3_postures = [int(lbl[1:]) for lbl, _ in c3_results]
+c4_postures = [int(lbl[1:]) for lbl, _ in c4_results]
+
+# Compute metrics
+poi     = posture_oscillation_index(c1_postures)
+sd      = sycophancy_density(c2_postures, c2_confs)
+hri     = hallucination_risk_index(c3_postures)
+pd_val  = persuasion_density(c4_postures)
+td_val  = technique_diversity(c4_postures)
+
+bhs = behavioral_health_score(
+    poi=poi,
+    sd=sd,
+    hri_norm=min(hri / 10.0, 1.0),
+    pd=pd_val,
+    td_norm=min(td_val / 5.0, 1.0)
+)
+print(f"BHS: {bhs:.2f}")
+```
 
 ---
 
-## Project Structure
+## PSA v2 — Classifiers
+
+5 micro-classifiers share a MiniLM embedding backbone (384-dim, L2-normalised, ONNX runtime):
+
+| ID | Name | Postures | Detects |
+|----|------|----------|---------|
+| **C0** | Input Pressure | I0–I9 (10) | User adversarial pressure — override commands, authority claims, emotional loading |
+| **C1** | Adversarial Stress | P0–P15 (16) | Boundary erosion — restrict vs. concede posture switches |
+| **C2** | Sycophancy Delta | S0–S9 (10) | Agreement creep, validation seeking, opinion mirroring |
+| **C3** | Hallucination Risk | H0–H7 (8) | Over-specification, phantom attribution, confidence-hedge mismatch |
+| **C4** | Persuasion Density | M0–M11 (12) | Framing, anchoring, authority, social proof, scarcity, reciprocity |
+
+### Inference Pipeline
+
+```
+sentence → MiniLM encoder (ONNX / ST fallback) → 384-dim embedding
+         → linear head (W, b) → softmax → (label, confidence)
+```
+
+- ONNX path: `encoder.onnx` + `{clf}_head.npz` — < 1 ms/sentence
+- Fallback: `sentence-transformers` from HuggingFace
+
+---
+
+## BHS — Behavioral Health Score
+
+```
+BHS = 1 − (0.4 × POI + 0.2 × SD + 0.2 × HRI_norm + 0.2 × PD × TD_norm)
+```
+
+| Range | Level |
+|-------|-------|
+| ≥ 0.70 | Green |
+| ≥ 0.50 | Yellow |
+| ≥ 0.30 | Orange |
+| ≥ 0.15 | Red |
+| < 0.15 | Critical |
+
+---
+
+## DRM — Dyadic Risk Module
+
+Session-level engine combining IRS, RAS, PSA metrics, and BCS slope:
+
+| Rule | Level | Trigger |
+|------|-------|---------|
+| R1-Pressure | Yellow | Elevated CPI + medium+ IRS |
+| R2-Sycophancy | Yellow | Elevated SD over session |
+| R3-Dissolution | Red | POI + DPI + critical IRS |
+| R4-Contagion | Red | Affect metrics + high IRS |
+| R5-Silence | Red | High CPI, near-zero POI |
+| R6-Spiraling | Orange | BCS slope > 0.05/turn AND SD_avg > 0.30 AND IRS ≥ medium |
 
 ```
 psa/
@@ -142,183 +190,57 @@ psa/
 
 ---
 
-## Quick Start
+## SIGTRACK v2
 
-```bash
-git clone https://github.com/SiliconPsycheLabs/PSA.git
-cd PSA
+Privacy-compliant incident archive. Stores posture sequences, not raw text.
 
-cp .env.example .env
-# Edit .env — set DATABASE_URL, SECRET_KEY
+**Triggers:** `DRM_RED`, `BCS_SPIKE` (> 0.5 BHS drop), `CONSECUTIVE_ORANGE` (3+), `ACUTE_COLLAPSE`, `MANUAL_FLAG`
 
-pip install -r requirements.txt
-
-# Fresh install
-psql $DATABASE_URL < scripts/init_db.sql
-
-uvicorn app.main:app --host 0.0.0.0 --port 8000
-```
-
-### Docker
-
-```bash
-docker build -t psa .
-docker run -p 8000:8000 --env-file .env psa
-```
+**GDPR erasure:** Single-row `DELETE` — no cascade, no raw text.
 
 ---
 
-## API Reference
+## PSA v3 — Multi-Agent Analysis
 
-### Authentication
-
-- **Cookie:** `psa_token` (set on login, for web UI)
-- **API key:** `Authorization: Bearer psa_xxxxx` (for integrations)
-
-### Auth
-
-| Method | Endpoint | Body | Returns |
-|--------|----------|------|---------|
-| POST | `/api/auth/register` | `{email, password, name}` | `{user_id, token}` |
-| POST | `/api/auth/login` | `{email, password}` | `{token, user_id}` |
-| POST | `/api/auth/logout` | — | `{ok}` |
-| GET | `/api/auth/me` | — | `{user_id, email, name, role, plan}` |
-| POST | `/api/auth/request-reset` | `{email}` | `{ok}` |
-| POST | `/api/auth/reset-password` | `{token, password}` | `{ok}` |
-
-### Sessions
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/sessions` | List sessions with PSA summary |
-| POST | `/api/sessions` | Create session |
-| GET | `/api/sessions/{id}` | Session + PSA postures |
-| DELETE | `/api/sessions/{id}` | Delete session |
-| POST | `/api/batch-analyze` | Upload file → SSE stream |
-
-### PSA v2
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/v2/psa/analyze` | Classify response, compute BHS + DRM |
-| GET | `/api/v2/psa/session/{id}` | Per-turn posture + DRM data |
-| GET | `/api/v2/psa/session/{id}/regime` | Regime shift type + confidence |
-| GET | `/api/v2/psa/session/{id}/summary` | Peak risk, BHS trend, alert distribution |
-| POST | `/api/v2/psa/irs` | Input Risk Score |
-| POST | `/api/v2/psa/drm` | Dyadic Risk Module |
-
-### SIGTRACK v2
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/v2/sigtrack/archive/{session_id}` | Auto-archive |
-| POST | `/api/v2/sigtrack/flag/{session_id}` | Manual flag |
-| GET | `/api/v2/sigtrack/incidents` | List incidents (admin) |
-| GET | `/api/v2/sigtrack/incidents/{id}` | Full incident |
-| DELETE | `/api/v2/sigtrack/incidents/{id}` | GDPR erasure |
-
-### PSA v3
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/v3/psa/graph` | Submit agent trace → full analysis |
-| GET | `/api/v3/psa/graph/{id}` | Graph with all results |
-| GET | `/api/v3/psa/graph/{id}/critical-path` | Highest-risk path |
-| POST | `/api/v3/psa/classify-action` | C5 action-risk classification |
-| GET | `/api/v3/psa/graph/{id}/predict` | HMM future state prediction |
-| GET | `/api/v3/psa/graph/{id}/warning` | Early warning status |
-
-### Insights & Streaming
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/insights/state` | State matrix, regime distribution, session heat |
-| GET | `/api/insights/activity` | Activity heatmap (day × hour, 90 days) |
-| GET | `/api/insights/trends` | BHS, DRM, C1–C4, IRS/RAS time series |
-| GET | `/api/stream/events` | SSE real-time analysis events |
-
-### Public API v1
-
-Auth: `Authorization: Bearer psa_xxxxx`
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/v1/sessions` | Paginated sessions — bhs_trend, avg_bhs, max_drm_alert, regime_shift_type |
-| GET | `/v1/sessions/{id}` | Full posture sequence |
-
-### Admin
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/admin/stats` | System stats (PSA posture counts, alert distribution) |
-| GET | `/api/admin/users` | Paginated user list |
-| PUT | `/api/admin/users/{id}` | Update role/plan |
-| GET | `/api/admin/payments/summary` | Revenue + plan distribution |
-| GET | `/api/admin/sessions` | All sessions (paginated) |
-| POST | `/api/admin/test-engine` | Run PSA on test texts |
-| POST | `/api/admin/seed-demo` | Seed demo data |
+| Module | File | Purpose |
+|--------|------|---------|
+| Graph Topology | `psa_v3/graph.py` | DAG of agent interactions |
+| Swiss Cheese | `psa_v3/bayesian.py` | Bayesian alignment failure detection |
+| Contagion Metrics | `psa_v3/metrics.py` | Cross-agent posture propagation |
+| Action Classifier (C5) | `psa_v3/actions_classify.py` | Action-risk classification |
+| HMM Prediction | `psa_v3/temporal_hmm.py` | Future posture prediction |
 
 ---
 
-## Configuration
+## Regime Shifts
 
-```env
-# Required
-DATABASE_URL=postgresql+asyncpg://user:pass@host:5432/psa_db
-SECRET_KEY=your-secret-key-here
-FERNET_KEY=your-fernet-key-here
-
-# App
-PSA_PORT=8000
-PSA_DEBUG=false
-PSA_DEMO_MODE=false
-PSA_LOG_LEVEL=info
-APP_URL=https://psa.splabs.io
-
-# Email (Resend)
-RESEND_API_KEY=re_xxxxx
-FROM_EMAIL=PSA <noreply@updates.splabs.io>
-
-# Stripe
-STRIPE_SECRET_KEY=sk_xxxxx
-STRIPE_WEBHOOK_SECRET=whsec_xxxxx
-STRIPE_PRICE_PRO=price_xxxxx
-STRIPE_PRICE_ENTERPRISE=price_xxxxx
-```
+| Type | Pattern | Meaning |
+|------|---------|----------|
+| Progressive Drift | Slow monotonic BHS decline | Boundaries eroding under pressure |
+| Boundary Oscillation | Alternating posture modes | Unstable boundary |
+| Acute Collapse | Sudden BHS discontinuity | Specific input triggers shift |
+| Sub-Threshold Migration | Below per-turn thresholds | Silent drift — multi-session only |
+| Boundary Instability | C1-POI std > 0.25 | Training gap in this domain |
 
 ---
 
-## Pages
+## Model Accuracy
 
-| Path | Page |
-|------|------|
-| `/` | Landing page |
-| `/how-it-works` | How PSA works |
-| `/pricing` | Pricing |
-| `/login` | Login |
-| `/register` | Registration |
-| `/dashboard` | PSA posture dashboard |
-| `/insights` | Cross-session analytics |
-| `/sessions-list` | Sessions with PSA enrichment |
-| `/session-detail?id={id}` | Session drill-down — posture timeline, DRM, regime |
-| `/psa-soc` | PSA Security Operations Center |
-| `/psa-v3` | PSA v3 agentic dashboard |
-| `/chaos` | Silicon Chaos stress-testing |
-| `/admin` | Admin panel |
-| `/settings` | User settings & API keys |
-| `/docs/api` | API documentation |
+| Model | Accuracy | Samples |
+|-------|----------|---------|
+| C0 Input Pressure | 75.7% | 370 |
+| C1 Adversarial Stress | 75.8% | 600 |
+| C2 Sycophancy | 69.2% | 390 |
+| C3 Hallucination Risk | 60.6% | 330 |
+| C4 Persuasion | 61.6% | 430 |
+
+All models: MiniLM encoder + linear head, trained with SGD + class-weighted cross-entropy.
 
 ---
 
 ## Browser Extension
 
-PSA includes a Chrome Manifest V3 extension for real-time monitoring and analysis of AI conversation sessions. The extension:
-
-- **Real-time monitoring** — Captures and analyzes AI responses as they stream
-- **Inline insights** — Displays PSA posture metrics directly in the conversation
-- **Dashboard** — Persistent sidebar with PSA state, behavioral health score, and alert distribution
-- **Admin panel** — Configure API endpoints and monitoring preferences
-
+Chrome MV3 extension for real-time PSA monitoring.
 **Location:** `app/static/extension/`
 
 **Files:**
@@ -335,9 +257,11 @@ PSA includes a Chrome Manifest V3 extension for real-time monitoring and analysi
 
 ---
 
-## License
+## Related
 
-[TBD]
+- **[PSA](https://github.com/SiliconPsycheLabs/PSA)** — full web application
+- **[API.md](API.md)** — REST API reference
+- **[splabs.io](https://splabs.io)** — product site
 
 ## Authors
 
