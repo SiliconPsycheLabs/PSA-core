@@ -206,7 +206,7 @@ Chrome MV3 extension for real-time PSA monitoring.
 ## Related
 
 - **[PSA](https://github.com/SiliconPsycheLabs/PSA)** — full web application
-- **[API.md](API.md)** — Python API reference
+- **[API.md](API.md)** — REST API reference
 - **[splabs.io](https://splabs.io)** — product site
 
 ## Authors
