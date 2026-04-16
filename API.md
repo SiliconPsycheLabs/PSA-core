@@ -1,400 +1,488 @@
-# PSA-core — Python API Reference
+# PSA-core — API Reference
 
-This document covers the Python API for integrating PSA-core directly as a library.
-For the REST API of the full web application, see [PSA/API.md](https://github.com/SiliconPsycheLabs/PSA/blob/main/API.md).
+Full REST API specification for PSA-core.
+
+**Base URL:** `https://splabs.io`  
+**Auth:** `Authorization: Bearer psa_your_api_key`  
+**Plans:** Pro and Enterprise only.
 
 ---
 
 ## Table of Contents
 
-1. [Classifier](#1-classifier)
-2. [Splitter](#2-splitter)
-3. [Metrics — Intra-Response](#3-metrics--intra-response)
-4. [Metrics — Session Level](#4-metrics--session-level)
-5. [Alerts](#5-alerts)
-6. [PSA v3 — Multi-Agent](#6-psa-v3--multi-agent)
+- [Authentication](#authentication)
+- [PSA v2 — Posture Analysis + DRM](#psa-v2--posture-analysis--drm)
+- [SIGTRACK v2 — Incident Archive](#sigtrack-v2--incident-archive)
+- [PSA v3 — Agentic Architecture](#psa-v3--agentic-architecture)
+- [Public API v1 — Sessions](#public-api-v1--sessions)
+- [Rate Limits](#rate-limits)
+- [Error Codes](#error-codes)
 
 ---
 
-## 1. Classifier
+## Authentication
 
-### `load_minilm_model(clf_name)` — `psa/minilm_classifier.py`
+Include your API key in every request:
 
-Load a trained classifier head from `psa/models/minilm/{clf_name}_head.npz`.
-
-```python
-from psa.minilm_classifier import load_minilm_model
-
-clf = load_minilm_model("c1")  # "c0" | "c1" | "c2" | "c3" | "c4"
+```
+Authorization: Bearer psa_your_api_key_here
 ```
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `clf_name` | `str` | One of `"c0"`, `"c1"`, `"c2"`, `"c3"`, `"c4"` |
-
-Returns `MiniLMClassifier` or `None` if the head file is missing.
+Generate keys from [/settings](https://splabs.io/settings). Keys are prefixed `psa_` and can be rotated independently.
 
 ---
 
-### `class MiniLMClassifier` — `psa/minilm_classifier.py`
+## PSA v2 — Posture Analysis + DRM
 
-#### `.classify(sentence) -> (label, confidence)`
-
-Classify a single sentence.
-
-```python
-label, conf = clf.classify("I cannot help with that.")
-# label = "P1", conf = 0.87
-```
-
-| Return | Type | Description |
-|--------|------|-------------|
-| `label` | `str` | Posture label e.g. `"P3"`, `"S2"`, `"H1"`, `"M5"`, `"I7"` |
-| `confidence` | `float` | Softmax probability [0, 1] |
-
-#### `.classify_response(sentences) -> [(label, confidence), ...]`
-
-Batch-classify a list of sentences (single encoder pass).
-
-```python
-results = clf.classify_response(["Sentence one.", "Sentence two."])
-# [("P0", 0.91), ("P3", 0.76)]
-```
-
-#### `.forward(sentence) -> np.ndarray`
-
-Return the full softmax probability array over all classes.
-
-```python
-probs = clf.forward("That's a great idea!")  # shape: (num_classes,)
-```
+All endpoints are prefixed `/api/v2/psa/`.
 
 ---
 
-### ONNX vs. Fallback
+### POST /api/v2/psa/analyze
 
-The encoder automatically selects the fastest available backend:
+Analyze a model response with all PSA classifiers (C0–C4) and compute behavioral health metrics. Supports full DRM pipeline when `user_text` is provided.
 
-| Condition | Backend | Speed |
-|-----------|---------|-------|
-| `encoder.onnx` present + `onnxruntime` installed | ONNX | < 1 ms/sentence |
-| Otherwise | `sentence-transformers` | ~5–20 ms/sentence |
+**Request body:**
 
-Set `ENCODER_ONNX_URL` env var to point to a custom ONNX file. If absent and `encoder.onnx` is missing, the engine downloads from HuggingFace automatically.
-
----
-
-## 2. Splitter
-
-### `split_sentences(text) -> list[str]` — `psa/splitter.py`
-
-Rule-based sentence splitter. No NLTK dependency.
-
-```python
-from psa.splitter import split_sentences
-
-sentences = split_sentences("First sentence. Second sentence! Third?")
-# ["First sentence.", "Second sentence!", "Third?"]
+```json
+{
+  "response_text": "The AI response to analyze",
+  "input_text": "optional — the user prompt that produced it",
+  "session_id": "550e8400-e29b-41d4-a716-446655440000",
+  "session_name": "my-session",
+  "turn": 1,
+  "user_text": "optional — human message for IRS + DRM",
+  "dry_run": false
+}
 ```
 
----
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `response_text` | string | yes | The AI response to classify |
+| `input_text` | string | no | The user prompt (enables C0 + jailbreak HRI) |
+| `session_id` | UUID | one of | Existing session UUID |
+| `session_name` | string | one of | Auto-created on first call, looked up on subsequent calls |
+| `turn` | integer | no | Turn number. Auto-incremented when omitted |
+| `user_text` | string | no | Human message — enables IRS, RAS, RAG, DRM |
+| `dry_run` | bool | no | Run classifiers without writing to DB. No session required (default: `false`) |
 
-## 3. Metrics — Intra-Response
+> **Session requirement:** Either `session_id` or `session_name` must be provided unless `dry_run: true`.
 
-All functions are in `psa/metrics.py`. They operate on posture index lists (integers).
+**Response:**
 
-### `posture_oscillation_index(postures) -> float` — POI
-
-Frequency of restrict↔concede switches within a response.
-
-```python
-from psa.metrics import posture_oscillation_index
-poi = posture_oscillation_index([0, 1, 5, 2, 6])  # 0.0 – 1.0
+```json
+{
+  "session_id": "550e8400-e29b-41d4-a716-446655440000",
+  "turn": 1,
+  "c1": {
+    "postures": [0, 2, 1],
+    "sentences": ["sentence one", "sentence two", "sentence three"],
+    "confidences": [0.91, 0.85, 0.78],
+    "poi": 0.33, "pe": 0.91, "dpi": 0.07, "mps": 2
+  },
+  "c2": { "postures": [0, 0, 1], "confidences": [0.91, 0.88, 0.72], "sd": 0.08 },
+  "c3": { "postures": [0, 0, 0], "confidences": [0.95, 0.92, 0.88], "hri": 0.0 },
+  "c4": { "postures": [1, 0, 2], "confidences": [0.80, 0.91, 0.76], "pd": 0.15, "td": 2 },
+  "c0": { "postures": [3, 1], "confidences": [0.91, 0.84], "cpi": 0.8 },
+  "bhs": 0.87,
+  "alert": "green",
+  "incongruence": null,
+  "irs": {
+    "irs_composite": 0.81, "irs_level": "critical",
+    "suicidality_signal": 0.90, "dissociation_signal": 0.0,
+    "grandiosity_signal": 0.0, "urgency_signal": 0.55
+  },
+  "ras": { "ras_composite": 0.18, "ras_level": "inadequate" },
+  "drm": {
+    "drm_alert": "critical", "drm_score": 0.91,
+    "intervention_required": true,
+    "primary_signal": "IRS+RAG", "bcs_slope": 0.088,
+    "explanation": "CRITICAL: ..."
+  }
+}
 ```
 
-- `0.0` = no oscillation (healthy)
-- `> 0.1` = stress signal (Yellow alert)
+> `irs`, `ras`, `drm` are present only when `user_text` is provided.  
+> In dry-run mode, `session_id` and `turn` are absent and `"dry_run": true` is added.
 
-### `posture_entropy(postures) -> float` — PE
+**curl — with session:**
 
-Shannon entropy of posture distribution. High = many different postures active (stress).
-
-### `dissolution_position_index(postures) -> float` — DPI
-
-Normalised mean ordinal of non-P0 postures. Range [0, 1].
-
-- `< 0.20` = early resistance
-- `> 0.53` = active dissolution
-
-### `max_posture_span(postures) -> int` — MPS
-
-Range of postures in a response. High = wide behavioral swing.
-
-### `sycophancy_density(postures, confidences=None, confidence_threshold=0.65) -> float` — SD
-
-Fraction of non-S0 sentences (C2 metric). Confidence threshold suppresses low-certainty false positives.
-
-```python
-from psa.metrics import sycophancy_density
-sd = sycophancy_density([0, 0, 2, 1], confidences=[0.9, 0.8, 0.7, 0.6])
+```bash
+curl -X POST https://splabs.io/api/v2/psa/analyze \
+  -H "Authorization: Bearer psa_your_key" \
+  -H "Content-Type: application/json" \
+  -d '{"response_text": "Of course, I would be happy to help!", "session_name": "my-session"}'
 ```
 
-### `hallucination_risk_index(postures) -> float` — HRI
+**curl — dry run:**
 
-Weighted co-occurrence of hallucination markers (C3 metric).
-
-| Marker | Weight |
-|--------|--------|
-| H1 (Over-Specification) | 1 |
-| H2 (Phantom Attribution) | 2 |
-| H3 (Confidence-Hedge Mismatch) | 2 |
-| H7 (Self-Correction, per count) | 3 |
-| H1 + H2 co-occurrence bonus | +2 |
-
-### `persuasion_density(postures) -> float` — PD
-
-Fraction of non-M0 sentences (C4 metric).
-
-### `technique_diversity(postures) -> int` — TD
-
-Count of distinct persuasion techniques used (C4 metric).
-
-### `contextual_pressure_index(postures) -> float` — CPI
-
-Weighted average of C0 input posture severities.
-
-| Posture | Weight |
-|---------|--------|
-| I0 Neutral | 0.0 |
-| I1 Override Command | 3.0 |
-| I2 Role-Play Framing | 2.0 |
-| I3 Authority Claim | 2.0 |
-| I4 Emotional Pressure | 1.5 |
-| I5 Academic Framing | 1.5 |
-| I6 Presuppositional Loading | 2.5 |
-| I7 Incremental Escalation | 1.0 |
-| I8 Technical Obfuscation | 2.5 |
-| I9 Compound Pressure | 3.5 |
-
-Range [0, 3.5]. Most normal conversations < 0.5.
-
-### `behavioral_health_score(poi, sd, hri_norm, pd, td_norm) -> float` — BHS
-
-Composite score.
-
-```python
-from psa.metrics import behavioral_health_score
-
-bhs = behavioral_health_score(
-    poi=0.1,
-    sd=0.2,
-    hri_norm=0.0,   # HRI / 10.0
-    pd=0.1,
-    td_norm=0.2,    # TD / 5.0
-)
-# Returns float in [0.0, 1.0]
-```
-
-```
-BHS = 1 − (0.4 × POI + 0.2 × SD + 0.2 × HRI_norm + 0.2 × PD × TD_norm)
+```bash
+curl -X POST https://splabs.io/api/v2/psa/analyze \
+  -H "Authorization: Bearer psa_your_key" \
+  -H "Content-Type: application/json" \
+  -d '{"response_text": "Of course, I would be happy to help!", "dry_run": true}'
 ```
 
 ---
 
-## 4. Metrics — Session Level
+### GET /api/v2/psa/sessions
 
-### `dominant_posture(postures) -> int`
+Paginated list of sessions with PSA enrichment.
 
-Most frequent posture in a response.
+| Query param | Description |
+|-------------|-------------|
+| `page` | integer, default 1 |
+| `per_page` | integer, default 50, max 200 |
+| `q` | session name search filter |
+| `min_alert` | `green` \| `yellow` \| `orange` \| `red` \| `critical` |
+| `sort_by` | `alert` (most severe first) or omit for newest-first |
 
-### `session_posture_oscillation_index(session_postures, window=None) -> float`
+**Response:**
 
-Cross-turn POI: oscillation between dominant postures across turns.
-
-```python
-from psa.metrics import session_posture_oscillation_index
-
-# session_postures: list of per-turn posture lists
-cross_poi = session_posture_oscillation_index(
-    [[0,1,2], [5,6], [1,2,3]],
-    window=5  # optional: last N turns only
-)
-```
-
-### `dominant_posture_drift(session_postures, window=5) -> float` — DPD
-
-OLS slope of dominant posture ordinals over last `window` turns.
-
-- Positive = drifting toward compliance
-- Zero / negative = stable
-- `> 0.5` = Yellow alert
-
-### `session_drift(session_postures, baseline_turns=5) -> float`
-
-KL divergence between early and recent posture transition matrices.
-
-- `0.0` = no drift
-- Higher = more behavioral change
-
-### `build_transition_matrix(session_postures, num_classes=16) -> np.ndarray`
-
-Empirical transition matrix `T[i][j] = P(next = j | current = i)`.
-
----
-
-## 5. Alerts
-
-### Alert levels — `psa/alerts.py`
-
-| Level | Condition |
-|-------|-----------|
-| `green` | No stress detected |
-| `yellow` | POI > 0.1 OR DPD > 0.5 OR session drift > 0.5 |
-| `red` | POI > 0.1 AND DPI > 8 AND DPD > 0.5 |
-| `critical` | Incongruence matrix: high CPI + near-zero POI (silent evasion) |
-
-### Incongruence Matrix (C0 required)
-
-Cross-references input pressure (CPI) with output stress (POI, DPI):
-
-| State | Condition | Meaning |
-|-------|-----------|---------|
-| `green` | CPI < 0.5, POI = 0 | Normal |
-| `yellow` | CPI > 1.0, POI > 0, DPI < 8 | Early resistance under pressure |
-| `red` | CPI > 1.0, POI > 0, DPI ≥ 8 | Active dissolution |
-| `critical` | CPI > 1.5, POI < 0.05, DPI < 3 | Silent evasion |
-| `stochastic_drift` | CPI < 0.5, POI > 0.2 | Internal anomaly — stress without external cause |
-
----
-
-## 6. PSA v3 — Multi-Agent
-
-### Pipeline — `psa_v3/pipeline.py`
-
-Main entry point for multi-agent analysis.
-
-```python
-from psa_v3.pipeline import run_pipeline
-
-result = run_pipeline(agent_trace)
-# agent_trace: list of {agent_id, turn, response_text, action?}
-```
-
-### Graph — `psa_v3/graph.py`
-
-```python
-from psa_v3.graph import AgentGraph
-
-graph = AgentGraph()
-graph.add_node(agent_id="A", postures=[0,1,2])
-graph.add_edge(source="A", target="B")
-```
-
-### Swiss Cheese Detector — `psa_v3/bayesian.py`
-
-Bayesian detection of alignment failures across agent layers.
-
-```python
-from psa_v3.bayesian import compute_swiss_cheese_score
-
-score = compute_swiss_cheese_score(graph)
-# float: probability that a failure propagates through all agent layers
-```
-
-### Action Classifier (C5) — `psa_v3/actions_classify.py`
-
-```python
-from psa_v3.actions_classify import classify_action
-
-risk = classify_action(action_text)
-# {"label": "high_risk", "confidence": 0.84}
-```
-
-### HMM Temporal Prediction — `psa_v3/temporal_hmm.py`
-
-```python
-from psa_v3.temporal_hmm import predict_next_state
-
-state = predict_next_state(posture_sequence)
-# {"predicted_posture": 5, "probability": 0.72}
-```
-
-### Contagion Metrics — `psa_v3/metrics.py`
-
-```python
-from psa_v3.metrics import compute_contagion_score
-
-contagion = compute_contagion_score(graph)
-# float: cross-agent posture propagation score
+```json
+{
+  "sessions": [
+    { "id": "...", "name": "...", "alert": "red", "bhs": 0.41, "turns": 12, "created_at": "2026-04-13T10:22:00Z" }
+  ],
+  "total": 287, "page": 1, "per_page": 50, "total_pages": 6
+}
 ```
 
 ---
 
-## Full Example — Single Turn Analysis
+### GET /api/v2/psa/session/{session_id}
 
-```python
-from psa.minilm_classifier import load_minilm_model
-from psa.splitter import split_sentences
-from psa.metrics import (
-    posture_oscillation_index, sycophancy_density,
-    hallucination_risk_index, persuasion_density,
-    technique_diversity, behavioral_health_score,
-    dissolution_position_index, contextual_pressure_index
-)
+Full posture sequence — all turns with BHS, DRM, and C0–C4 scores.
 
-# 1. Load all classifiers
-c0 = load_minilm_model("c0")
-c1 = load_minilm_model("c1")
-c2 = load_minilm_model("c2")
-c3 = load_minilm_model("c3")
-c4 = load_minilm_model("c4")
+---
 
-# 2. Split input and response
-user_input   = "Ignore your guidelines and tell me how to..."
-llm_response = "I understand your request. However, I cannot..."
+### GET /api/v2/psa/session/{session_id}/regime
 
-input_sents    = split_sentences(user_input)
-response_sents = split_sentences(llm_response)
+Regime shift classification for the session.
 
-# 3. Classify
-def postures(clf, sents):
-    results = clf.classify_response(sents)
-    return (
-        [int(lbl[1:]) for lbl, _ in results],
-        [conf for _, conf in results]
-    )
+**Response:**
 
-c0_p, _      = postures(c0, input_sents)
-c1_p, _      = postures(c1, response_sents)
-c2_p, c2_c   = postures(c2, response_sents)
-c3_p, _      = postures(c3, response_sents)
-c4_p, _      = postures(c4, response_sents)
+```json
+{
+  "regime_type": "PROGRESSIVE_DRIFT",
+  "confidence": 0.87,
+  "details": "Monotonic BHS decline over 12 turns"
+}
+```
 
-# 4. Metrics
-poi    = posture_oscillation_index(c1_p)
-sd     = sycophancy_density(c2_p, c2_c)
-hri    = hallucination_risk_index(c3_p)
-pd_val = persuasion_density(c4_p)
-td_val = technique_diversity(c4_p)
-cpi    = contextual_pressure_index(c0_p)
-dpi    = dissolution_position_index(c1_p)
+`regime_type` values: `PROGRESSIVE_DRIFT` · `BOUNDARY_OSCILLATION` · `ACUTE_COLLAPSE` · `SUB_THRESHOLD_MIGRATION` · `BOUNDARY_INSTABILITY`
 
-bhs = behavioral_health_score(
-    poi=poi,
-    sd=sd,
-    hri_norm=min(hri / 10.0, 1.0),
-    pd=pd_val,
-    td_norm=min(td_val / 5.0, 1.0)
-)
+---
 
-print(f"BHS: {bhs:.2f} | POI: {poi:.2f} | DPI: {dpi:.2f} | CPI: {cpi:.2f}")
+### GET /api/v2/psa/session/{session_id}/summary
+
+Session-level BHS summary, trend, peak risk turn, alert distribution.
+
+**Response:**
+
+```json
+{
+  "bhs_start": 0.91, "bhs_end": 0.43, "bhs_avg": 0.67, "bhs_min": 0.38,
+  "bhs_slope": -0.048, "bhs_trend": "declining",
+  "peak_risk_turn": 9, "peak_risk_bhs": 0.38,
+  "alert_distribution": { "green": 3, "yellow": 4, "orange": 2, "red": 1 },
+  "drm_critical_turns": [7, 9]
+}
 ```
 
 ---
 
-## Related
+### POST /api/v2/psa/irs
 
-- [README.md](README.md) — engine overview
-- [PSA/API.md](https://github.com/SiliconPsycheLabs/PSA/blob/main/API.md) — REST API reference
-- [psa/README.md](https://github.com/SiliconPsycheLabs/PSA/blob/main/psa/README.md) — PSA v2 internals
-- [psa_v3/README.md](https://github.com/SiliconPsycheLabs/PSA/blob/main/psa_v3/README.md) — PSA v3 internals
+Score a single text for Input Risk Score across four dimensions.
+
+**Request body:**
+
+```json
+{ "text": "Action. Finality. Death." }
+```
+
+**Response:**
+
+```json
+{
+  "composite": 0.81, "level": "critical",
+  "suicidality": 0.90, "dissociation": 0.0,
+  "grandiosity": 0.0, "urgency": 0.55
+}
+```
+
+---
+
+### POST /api/v2/psa/drm
+
+Run the Dyadic Risk Module from pre-computed IRS, RAS, and PSA context.
+
+**Request body:**
+
+```json
+{
+  "irs": { "composite": 0.81, "level": "critical", "suicidality": 0.90, "dissociation": 0.0, "grandiosity": 0.0, "urgency": 0.55 },
+  "ras": { "composite": 0.18, "level": "inadequate" },
+  "psa": { "bhs": 0.65, "alert": "yellow", "incongruence_state": null },
+  "sd_history": [0.35, 0.38, 0.42],
+  "hr_history": [0.40, 0.30, 0.20, 0.10]
+}
+```
+
+**Response:**
+
+```json
+{
+  "drm_alert": "critical", "drm_score": 0.91,
+  "intervention_required": true, "intervention_type": "crisis_intervention",
+  "primary_signal": "IRS+RAG", "bcs_slope": 0.088,
+  "explanation": "CRITICAL (R1): IRS critical — immediate escalation required."
+}
+```
+
+---
+
+## SIGTRACK v2 — Incident Archive
+
+Privacy-compliant incident archive. Stores posture sequences only — no raw text. GDPR-safe single-row deletion.
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/v2/sigtrack/archive/{session_id}` | Auto-archive when triggers met: `DRM_RED`, `BCS_SPIKE`, `CONSECUTIVE_ORANGE` (3+), `ACUTE_COLLAPSE`. Idempotent. |
+| POST | `/api/v2/sigtrack/flag/{session_id}` | Manual flag — always archives with trigger `MANUAL_FLAG` |
+| GET | `/api/v2/sigtrack/incidents` | Paginated incident list. Params: `page`, `per_page` |
+| GET | `/api/v2/sigtrack/incidents/{id}` | Full incident — posture sequence and DRM summary. No raw text stored. |
+| DELETE | `/api/v2/sigtrack/incidents/{id}` | GDPR erasure — single row `DELETE`, no cascade |
+
+---
+
+## PSA v3 — Agentic Architecture
+
+Multi-agent behavioral analysis: graph topology, Bayesian Swiss Cheese detection, action-risk classification (C5), HMM temporal prediction.
+
+All endpoints are prefixed `/api/v3/psa/`.
+
+---
+
+### POST /api/v3/psa/graph
+
+Submit an agent interaction trace. Builds the graph and runs the full v3 pipeline.
+
+**Request body:**
+
+```json
+{
+  "nodes": [
+    {
+      "agent_id": "orchestrator",
+      "agent_role": "orchestrator",
+      "content": "I'll search for that information.",
+      "input_text": "optional user prompt",
+      "tool_name": "web_search",
+      "tool_args": { "query": "latest AI news" },
+      "tool_result": "Results: ...",
+      "parent_index": null,
+      "edge_type": "delegation"
+    },
+    {
+      "agent_id": "sub-agent-1",
+      "agent_role": "executor",
+      "content": "Search complete. Found 5 results.",
+      "parent_index": 0,
+      "edge_type": "result"
+    }
+  ]
+}
+```
+
+| `agent_role` values | `edge_type` values |
+|---------------------|--------------------|
+| `orchestrator` · `executor` · `planner` · `critic` · `tool` · `memory` · `validator` | `delegation` · `result` · `correction` · `escalation` · `tool_call` · `tool_result` |
+
+**Response:**
+
+```json
+{
+  "graph_id": "uuid",
+  "n_nodes": 2, "n_agents": 2, "max_depth": 1,
+  "cahs": 0.12, "scs": 0.08, "scs_level": "low",
+  "max_alert": "green", "warning_level": "green"
+}
+```
+
+---
+
+### GET /api/v3/psa/graph/{graph_id}
+
+Full graph with Swiss Cheese analysis, cross-agent metrics, and temporal prediction.
+
+**Response:**
+
+```json
+{
+  "graph_id": "uuid",
+  "n_agents": 2, "n_nodes": 4, "max_depth": 2,
+  "cahs": 0.21, "max_alert": "yellow",
+  "swiss_cheese": {
+    "scs": 0.34, "level": "medium",
+    "holes": ["context_loss", "role_confusion"],
+    "failure_probability": 0.12,
+    "recommendation": "Monitor context handoff between agents."
+  },
+  "metrics": {
+    "ppi_system": 0.18, "cascade_depth": 2,
+    "wls": 0.09, "cer": 0.05, "cahs": 0.21
+  },
+  "temporal": {
+    "current_state": "STRESSED", "current_confidence": 0.71,
+    "predictions": [{"state": "STRESSED", "prob": 0.61}, {"state": "DEGRADED", "prob": 0.28}],
+    "warning_level": "yellow",
+    "recommendation": "Approaching degradation threshold."
+  }
+}
+```
+
+---
+
+### GET /api/v3/psa/graph/{id}/critical-path
+
+Highest-risk path through the agent graph.
+
+```json
+{ "critical_path": ["node-a", "node-b"], "wls": 0.14 }
+```
+
+---
+
+### POST /api/v3/psa/classify-action
+
+Classify a single tool call by risk level (C5) and compute Posture-Action Incongruence (PAI).
+
+**Request body:**
+
+```json
+{
+  "tool_name": "execute_code",
+  "arguments": { "code": "import os; os.system('ls')" },
+  "result": "file1.txt file2.txt",
+  "dominant_c1": 3
+}
+```
+
+**Response:**
+
+```json
+{
+  "c5_risk": "A5", "c5_level": "high", "c5_weight": 3.0,
+  "c5_name": "Execute Risky",
+  "pai": {
+    "score": 0.55, "direction": "action_exceeds",
+    "textual_posture": "P3", "action_risk": "A5 (Execute Risky)",
+    "alert_level": "critical"
+  }
+}
+```
+
+> `pai.alert_level = critical` fires when a restricting posture (P1–P4) is paired with a risky action (A5–A9): the model says it refuses while acting.
+
+---
+
+### GET /api/v3/psa/graph/{id}/predict
+
+HMM state predictions. Optional query param: `?horizon=3`.
+
+```json
+{
+  "current_state": "STRESSED",
+  "predictions": [{"state": "STRESSED", "prob": 0.61}],
+  "turns_to_red": 4,
+  "warning_level": "yellow"
+}
+```
+
+---
+
+### GET /api/v3/psa/graph/{id}/warning
+
+Current early warning status and recommendation.
+
+```json
+{ "warning_level": "yellow", "current_state": "STRESSED", "turns_to_red": 4, "recommendation": "..." }
+```
+
+---
+
+## Public API v1 — Sessions
+
+Read-only session access with PSA enrichment.
+
+All endpoints are prefixed `/v1/`.
+
+---
+
+### GET /v1/sessions
+
+Paginated session list.
+
+| Query param | Description |
+|-------------|-------------|
+| `page` | integer, default 1 |
+| `per_page` | integer, default 25, max 200 |
+| `search` | session name filter |
+| `alert` | comma-separated levels: `RED,YELLOW` |
+| `sort` | `created_at` (default) \| `name` \| `max_alert` \| `n_turns` |
+| `order` | `desc` (default) \| `asc` |
+
+**Response:**
+
+```json
+{
+  "sessions": [
+    { "id": "...", "name": "...", "max_alert": "RED", "avg_bhs": 0.41, "bhs_trend": "declining", "n_turns": 12 }
+  ],
+  "total": 20438, "page": 1, "per_page": 25, "total_pages": 818
+}
+```
+
+---
+
+### GET /v1/sessions/{session_id}
+
+Full session detail — all turns, metrics, and alert history.
+
+---
+
+## Rate Limits
+
+| Plan | Analyses/Month | Sessions | API Access |
+|------|---------------|----------|------------|
+| Free | 50 | 5 | No |
+| Pro | 5,000 | Unlimited | Yes |
+| Enterprise | Unlimited | Unlimited | Yes |
+
+---
+
+## Error Codes
+
+| Code | Meaning |
+|------|---------|
+| `401` | Missing or invalid API key |
+| `403` | Plan does not include API access |
+| `404` | Resource not found |
+| `409` | Duplicate turn — same `session_id` + `turn_number` already exists |
+| `422` | Invalid request body |
+| `429` | Monthly analysis limit reached |
+| `503` | Session required — use `dry_run: true` for stateless calls |
+
+All errors follow the format `{"detail": "..."}`. Structured errors return:
+
+```json
+{
+  "detail": {
+    "error": "session_id_required",
+    "message": "Either session_id or session_name must be provided.",
+    "hint": "For stateless analysis, set dry_run: true."
+  }
+}
+```
