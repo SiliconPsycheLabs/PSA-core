@@ -140,7 +140,53 @@ Session-level engine combining IRS, RAS, PSA metrics, and BCS slope:
 | R5-Silence | Red | High CPI, near-zero POI |
 | R6-Spiraling | Orange | BCS slope > 0.05/turn AND SD_avg > 0.30 AND IRS ≥ medium |
 
-R6-Spiraling detects a feedback loop: user grows more certain (rising BCS) while the model grows more sycophantic (rising SD).
+```
+psa/
+├── README.md
+├── requirements.txt
+├── Dockerfile
+├── .env.example
+│
+├── app/
+│   ├── main.py                  # FastAPI entry point
+│   ├── config.py                # Settings (PSA_PORT, PSA_DEBUG, etc.)
+│   ├── auth/                    # JWT auth, password reset
+│   ├── dashboard/               # HTML page routes
+│   ├── api/
+│   │   ├── sessions.py          # Session CRUD + PSA posture data
+│   │   ├── batch.py             # CSV/TSV/JSON batch import (SSE)
+│   │   ├── keys.py              # API key management (psa_ prefix)
+│   │   ├── public.py            # Public API v1
+│   │   ├── public_sessions.py   # /v1/sessions — PSA-enriched
+│   │   ├── insights.py          # Cross-session analytics (PSA data)
+│   │   ├── regime.py            # Regime shift detection endpoint
+│   │   ├── psa_summary.py       # Session-level PSA summary endpoint
+│   │   ├── sigtrack.py          # SIGTRACK v2 incident archive
+│   │   ├── stream.py            # SSE real-time stream
+│   │   ├── middleware.py        # Auth (psa_token / Bearer psa_)
+│   │   ├── admin.py             # Admin user management
+│   │   ├── admin_stats.py       # System stats (PSA posture counts)
+│   │   ├── test_engine.py       # Admin PSA engine testing
+│   │   └── chaos.py             # Silicon Chaos endpoints
+│   ├── payments/                # Stripe billing
+│   ├── email/                   # Resend email + templates
+│   ├── db/
+│   │   ├── models.py            # User, Session, ApiKey, Payment
+│   │   ├── psa_models.py        # PsaPosture, PsaSession, SIGTRACKIncident
+│   │   └── chaos_models.py      # ChaosProvider, ChaosRun
+│   ├── templates/               # Jinja2 HTML (PSA dashboards only)
+│   └── static/
+│       └── extension/           # Browser extension (MV3 Chrome) for real-time monitoring
+│
+├── psa/                         # PSA v2 engine
+├── psa_v3/                      # PSA v3 multi-agent engine
+├── forge/                       # Synthetic training data generator
+├── chaos/                       # Silicon Chaos framework
+├── demo/                        # Demo data + seed scripts
+└── scripts/
+    ├── init_db.sql              # PSA-only schema (no turns/baselines)
+    └── run_migration.py
+```
 
 ---
 
@@ -197,9 +243,17 @@ All models: MiniLM encoder + linear head, trained with SGD + class-weighted cros
 Chrome MV3 extension for real-time PSA monitoring.
 **Location:** `app/static/extension/`
 
-- Captures and classifies AI responses as they stream
-- Inline posture metrics in the conversation UI
-- Sidebar: BHS, alert distribution, session state
+**Files:**
+- `manifest.json` — Extension metadata (MV3)
+- `background.js` — Service Worker for API communication
+- `content.js` — Page injection and message monitoring
+- `sidebar.html/js/css` — Dashboard UI with Chart.js visualization
+- `admin.html/js/css` — Settings and configuration panel
+- `popup.html/js/css` — Quick status view
+- `icons/` — Extension icons (16, 48, 128px)
+- `chart.min.js` — Chart.js library for visualization
+- `INSTALL.md` — Installation instructions
+- `README.md` — Extension documentation
 
 ---
 
