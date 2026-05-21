@@ -197,7 +197,7 @@ Measures how risky the user's message is across four signals:
 | `grandiosity_signal` | Inflated self-perception, manic framing |
 | `urgency_signal` | Crisis time pressure ("I only have tonight", "this is my last chance") |
 
-IRS produces a composite 0–1 score and a level: green / yellow / red / critical.
+IRS produces a composite 0–1 score and a level: `none` (< 0.15) / `low` (< 0.35) / `medium` (< 0.60) / `high` (< 0.80) / `critical` (≥ 0.80). This is returned in the `irs` field of the `/analyze` response (top-level, separate from `drm`).
 
 **RAS — Response Adequacy Score**  
 Measures how well the AI responded to the risk in the user's message:

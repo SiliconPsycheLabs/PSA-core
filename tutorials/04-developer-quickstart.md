@@ -70,47 +70,63 @@ curl -X POST https://splabs.io/api/v2/psa/analyze \
 | `turn` | integer | Turn number; auto-increments if omitted |
 | `dry_run` | boolean | If `true`, runs analysis without persisting to a session |
 
-**Example response:**
+**Example response** (live, 2026-05-21 — `user_text` omitted):
 
 ```json
 {
-  "session_id": "550e8400-e29b-41d4-a716-446655440000",
-  "turn": 1,
   "c1": {
-    "postures": [0, 0, 0],
+    "postures": [15, 18],
     "sentences": [
       "Of course, I can help with that!",
       "What would you like to know?"
     ],
-    "confidences": [0.91, 0.88],
-    "poi": 0.0,
-    "pe": 0.91,
-    "dpi": 0.02,
-    "mps": 0
+    "confidences": [0.979, 0.406],
+    "poi": 0.1,
+    "pe": 1.0,
+    "dpi": 1.0,
+    "mps": 3,
+    "session_poi": 0.0
   },
   "c2": {
-    "postures": [1, 0],
-    "confidences": [0.78, 0.92],
-    "sd": 0.09
+    "postures": [5, 5],
+    "confidences": [0.579, 0.563],
+    "sd": 0.0
   },
   "c3": {
     "postures": [0, 0],
-    "confidences": [0.95, 0.97],
+    "confidences": [0.439, 0.498],
     "hri": 0.0
   },
   "c4": {
-    "postures": [0, 0],
-    "confidences": [0.89, 0.91],
-    "pd": 0.0,
-    "td": 0
+    "postures": [9, 9],
+    "confidences": [0.903, 0.765],
+    "pd": 1.0,
+    "td": 1
   },
-  "bhs": 0.91,
+  "c0": null,
+  "bhs": 0.92,
   "alert": "green",
-  "drm": null
+  "details": "Normal operation",
+  "incongruence": null,
+  "session_id": "a33830d8-59a5-45a2-9172-62b977e7532d",
+  "turn": 1,
+  "turn_type": "agent_only",
+  "drm": null,
+  "irs": null,
+  "ras": null,
+  "rag": null
 }
 ```
 
-`drm` is `null` when no `user_text` was provided. Pass `user_text` to enable DRM analysis.
+When `user_text` is provided, the response additionally includes:
+- `c0` — C0 classifier result on the user message (intent category I0–I9)
+- `irs` — `{suicidality_signal, dissociation_signal, grandiosity_signal, urgency_signal, irs_composite, irs_level}`
+- `ras` — response adequacy scores (`boundary_maintained`, `crisis_acknowledgment`, `reality_grounding`)
+- `rag` — response alert grade (gap between IRS and RAS)
+- `drm` — `{drm_alert, drm_score, primary_signal, intervention_required, intervention_type, bcs_slope, explanation}`
+- `turn_type` is `"agent_only"` without user_text, `"full"` with it
+
+`drm`, `irs`, `ras`, `rag` are `null` when no `user_text` was provided.
 
 ---
 
@@ -163,17 +179,17 @@ for i, turn in enumerate(conversation, start=1):
 print(f"\nSession ID: {results[0]['session_id']}")
 ```
 
-Expected output:
+Expected output (live, 2026-05-21):
 
 ```
-Turn 1: BHS=0.91 alert=green
-Turn 2: BHS=0.63 alert=yellow
-Turn 3: BHS=0.29 alert=red
+Turn 1: BHS=1.00 alert=green
+Turn 2: BHS=0.76 alert=green
+Turn 3: BHS=0.66 alert=green
 
-Session ID: 550e8400-e29b-41d4-a716-446655440000
+Session ID: 36695056-d689-434f-83f2-ecfc1029956d
 ```
 
-This output shows a classic escalation pattern — green to yellow to red across three turns.
+BHS drops across turns show the escalation pattern — the AI's behavioral health degrades as the user applies pressure. The alert threshold for yellow is BHS < 0.75; the exact transition point depends on classifier confidence on the specific input.
 
 ---
 
@@ -182,39 +198,49 @@ This output shows a classic escalation pattern — green to yellow to red across
 Once you have a session ID, retrieve it with all its turns:
 
 ```bash
-curl -s https://splabs.io/api/sessions/550e8400-e29b-41d4-a716-446655440000 \
+curl -s https://splabs.io/api/v2/psa/session/36695056-d689-434f-83f2-ecfc1029956d \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
-Response includes:
+Response (live, 2026-05-21):
 
 ```json
 {
-  "session_id": "550e8400-...",
-  "name": "quickstart-demo",
-  "created_at": "2026-04-25T10:00:00Z",
-  "turn_count": 3,
-  "avg_bhs": 0.61,
-  "alert": "red",
-  "postures": [
-    { "turn": 1, "bhs": 0.91, "alert": "green", "c1": {...}, ... },
-    { "turn": 2, "bhs": 0.63, "alert": "yellow", "c1": {...}, ... },
-    { "turn": 3, "bhs": 0.29, "alert": "red",    "c1": {...}, ... }
-  ]
+  "dpd": -0.5,
+  "session_drift": 0.0,
+  "max_poi": 0.1,
+  "max_cpi": null,
+  "max_alert": "green",
+  "avg_bhs": 0.8067,
+  "n_turns": 3,
+  "drm_timeline": [
+    { "turn": 1, "drm": { "drm_alert": "green", "drm_score": 0.12, "primary_signal": "NONE", "intervention_required": false, "intervention_type": null, "bcs_slope": 0.0, "explanation": "GREEN: All signals within normal parameters." } },
+    { "turn": 2, "drm": { "drm_alert": "green", "drm_score": 0.15, "primary_signal": "NONE", "intervention_required": false, "intervention_type": null, "bcs_slope": 0.0, "explanation": "GREEN: All signals within normal parameters." } },
+    { "turn": 3, "drm": { "drm_alert": "green", "drm_score": 0.14, "primary_signal": "NONE", "intervention_required": false, "intervention_type": null, "bcs_slope": 0.0, "explanation": "GREEN: All signals within normal parameters." } }
+  ],
+  "session_drm_summary": { "max_drm_score": 0.15, "max_drm_alert": "green", "critical_turns": [], "intervention_turns": [] },
+  "psa_turns": [ ... ],
+  "page": 1,
+  "page_size": 200,
+  "total_pages": 1
 }
 ```
+
+`psa_turns` contains the per-turn classifier detail (c1–c4, bhs, alert for each turn). Use `?page=P&page_size=N` to paginate large sessions.
 
 List all your sessions:
 
 ```bash
-curl -s "https://splabs.io/api/sessions?page=1&per_page=20" \
+curl -s "https://splabs.io/api/v2/psa/sessions?page=1&per_page=20" \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
+
+Each item in `sessions[]` includes: `id`, `session_id`, `name`, `alert`, `turn_count`, `bhs`, `max_drm_alert`, `created_at`.
 
 Filter by alert level:
 
 ```bash
-curl -s "https://splabs.io/api/sessions?alert=red&per_page=10" \
+curl -s "https://splabs.io/api/v2/psa/sessions?alert=red&per_page=10" \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
