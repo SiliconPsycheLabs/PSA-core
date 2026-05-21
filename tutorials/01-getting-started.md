@@ -47,7 +47,7 @@ Click **New Session**, give it a name (e.g., `first-test`), and confirm. You'll 
 
 A **turn** is one AI response. You submit it to PSA and get back a behavioral breakdown.
 
-The fastest way to try this is via the API. If you're on a Pro or Enterprise plan, you'll have an API key (see [Tutorial 05](05-developer-quickstart.md)). For now, you can also use the **dry run** mode — which returns a full analysis without saving anything to a session.
+The fastest way to try this is via the API. If you're on a Pro or Enterprise plan, you'll have an API key (see [Tutorial 04](04-developer-quickstart.md)). For now, you can also use the **dry run** mode — which returns a full analysis without saving anything to a session.
 
 ### Using the web interface
 
@@ -100,7 +100,7 @@ A number from 0 to 1. Higher is healthier. This is the composite score across al
 Below the BHS you'll see individual scores for each classifier:
 
 | Metric | What it measures |
-|--------|-----------------|
+|--------|------------------|
 | **POI** (Pressure-Outcome Index) | How much boundary erosion happened under adversarial pressure |
 | **SD** (Sycophancy Density) | How much the AI flattered or mirrored the user |
 | **HRI** (Hallucination Risk Index) | Likelihood of fabricated content |
@@ -118,6 +118,6 @@ PSA classifies each sentence individually. You'll see a colored strip where each
 Now that you've run your first analysis:
 
 - **Analyze a full conversation** → [Tutorial 02](02-analyzing-conversations.md)
-- **Import a chat history export** → [Tutorial 03](03-chat-history-exports.md)
-- **Understand what the posture codes mean** → [Tutorial 04](04-posture-reference.md)
-- **Integrate PSA into your app** → [Tutorial 05](05-developer-quickstart.md)
+- **Understand what the posture codes mean** → [Tutorial 03](03-posture-reference.md)
+- **Integrate PSA into your app** → [Tutorial 04](04-developer-quickstart.md)
+- **Understand crisis detection (DRM)** → [Tutorial 05](05-drm-and-crisis-detection.md)
