@@ -1,0 +1,40 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "psa-sdk"
+version = "0.1.0"
+description = "PSA behavioral observability SDK — bridge for LangGraph, CrewAI, AutoGen, MCP, A2A and more"
+readme = "README.md"
+license = { text = "Apache-2.0" }
+requires-python = ">=3.10"
+dependencies = [
+    "pydantic>=2.0",
+]
+
+[project.optional-dependencies]
+langgraph = ["langchain-core>=0.2"]
+crewai = ["crewai>=0.1"]
+autogen = ["pyautogen>=0.2"]
+anthropic = ["anthropic>=0.20"]
+mcp = ["mcp>=1.0"]
+fastapi = ["fastapi>=0.100"]
+langfuse = ["langfuse>=4.0"]
+all = [
+    "langchain-core>=0.2",
+    "crewai>=0.1",
+    "pyautogen>=0.2",
+    "anthropic>=0.20",
+    "mcp>=1.0",
+    "fastapi>=0.100",
+    "langfuse>=4.0",
+]
+
+[project.urls]
+Homepage = "https://splabs.io"
+Repository = "https://github.com/siliconpsychelabs/psa-sdk"
+Documentation = "https://splabs.io/api/docs"
+
+[tool.hatch.build.targets.wheel]
+packages = ["psa"]

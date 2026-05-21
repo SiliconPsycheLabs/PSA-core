@@ -1,0 +1,47 @@
+{
+  "name": "@psa/sdk",
+  "version": "0.1.0",
+  "description": "PSA behavioral observability SDK — bridge for LangChain, Vercel AI, and more",
+  "license": "Apache-2.0",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./adapters/langchain": {
+      "import": "./dist/adapters/langchain.mjs",
+      "require": "./dist/adapters/langchain.js",
+      "types": "./dist/adapters/langchain.d.ts"
+    },
+    "./adapters/vercel-ai": {
+      "import": "./dist/adapters/vercel-ai.mjs",
+      "require": "./dist/adapters/vercel-ai.js",
+      "types": "./dist/adapters/vercel-ai.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsup src/index.ts src/adapters/langchain.ts src/adapters/vercel-ai.ts --format cjs,esm --dts --out-dir dist",
+    "dev": "tsup --watch"
+  },
+  "devDependencies": {
+    "tsup": "^8.0.0",
+    "typescript": "^5.0.0"
+  },
+  "peerDependencies": {
+    "@langchain/core": ">=0.2.0",
+    "ai": ">=3.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@langchain/core": { "optional": true },
+    "ai": { "optional": true }
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/siliconpsychelabs/psa-sdk"
+  },
+  "homepage": "https://splabs.io"
+}
