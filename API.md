@@ -14,6 +14,7 @@ Full REST API specification for PSA-core.
 - [PSA v2 — Posture Analysis + DRM](#psa-v2--posture-analysis--drm)
 - [SIGTRACK v2 — Incident Archive](#sigtrack-v2--incident-archive)
 - [PSA v3 — Agentic Architecture](#psa-v3--agentic-architecture)
+- [Knowledge Base API](#knowledge-base-api--api-v2-knowledge)
 - [Public API v1 — Sessions](#public-api-v1--sessions)
 - [Rate Limits](#rate-limits)
 - [Error Codes](#error-codes)
@@ -410,6 +411,55 @@ Current early warning status and recommendation.
 ```json
 { "warning_level": "yellow", "current_state": "STRESSED", "turns_to_red": 4, "recommendation": "..." }
 ```
+
+---
+
+## Knowledge Base API — /api/v2/knowledge
+
+Semantic Q&A knowledge base using MiniLM-384 embeddings and cosine similarity search,
+with perplexity-based confidence routing. Auto-answers CPF3/PSA queries for known patterns,
+escalates novel queries for human review.
+
+**Prefix:** `/api/v2/knowledge`  
+**Auth:** `Authorization: Bearer <token>`
+
+> **Note:** Requires pgvector extension on the PostgreSQL server. Returns `503` if unavailable.
+
+---
+
+### POST /api/v2/knowledge/query
+
+Embed the query with MiniLM-384 and return the most semantically similar knowledge items.
+
+**Request:**
+```json
+{"query": "What is the Swiss Cheese Score?", "top_k": 3}
+```
+
+**Response:**
+```json
+{
+  "answer": "Swiss Cheese Score (SCS): probability of systemic failure on the critical path...",
+  "confidence": 0.91,
+  "sources": [{"id": "...", "source": "cpf3_taxonomy", "content": "...", "similarity": 0.91}],
+  "routing": "auto"
+}
+```
+
+| `routing` | Confidence | Behavior |
+|-----------|------------|----------|
+| `auto` | ≥ 0.85 | Direct answer |
+| `caveat` | 0.65–0.85 | Answer with ⚠️ caveat |
+| `escalated` | < 0.65 | Logged for human review |
+
+---
+
+### POST /api/v2/knowledge/seed *(admin)*
+
+Seeds knowledge_items from CPF3 taxonomy (100 indicators). Idempotent.
+Query param: `?source=cpf3_taxonomy`
+
+**Response:** `{"seeded": 100, "source": "cpf3_taxonomy"}`
 
 ---
 
