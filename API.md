@@ -13,6 +13,8 @@ Full REST API specification for PSA-core.
 - [Authentication](#authentication)
 - [PSA v2 — Posture Analysis + DRM](#psa-v2--posture-analysis--drm)
 - [SIGTRACK v2 — Incident Archive](#sigtrack-v2--incident-archive)
+  - [Action Log](#sigtrack-action-log)
+  - [Forensic Ledger](#sigtrack-forensic-ledger)
 - [PSA v3 — Agentic Architecture](#psa-v3--agentic-architecture)
 - [Knowledge Base API](#knowledge-base-api--api-v2-knowledge)
 - [Public API v1 — Sessions](#public-api-v1--sessions)
@@ -255,6 +257,91 @@ Privacy-compliant incident archive. Stores posture sequences only — no raw tex
 | GET | `/api/v2/sigtrack/incidents` | Paginated incident list. Params: `page`, `per_page` |
 | GET | `/api/v2/sigtrack/incidents/{id}` | Full incident — posture sequence and DRM summary. No raw text stored. |
 | DELETE | `/api/v2/sigtrack/incidents/{id}` | GDPR erasure — single row `DELETE`, no cascade |
+
+
+### SIGTRACK Action Log
+
+Operator and system response audit trail. Records what was done after each segnalazione.
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| POST | `/api/v2/psa/sigtrack/incidents/{incident_id}/actions` | API key | Log an action for a known incident |
+| POST | `/api/v2/psa/sigtrack/sessions/{session_id}/actions` | API key | Log an action by session (no incident required) |
+| GET  | `/api/v2/psa/sigtrack/incidents/{incident_id}/actions` | Admin | List actions for incident (paginated) |
+| GET  | `/api/v2/psa/sigtrack/sessions/{session_id}/actions` | API key | List actions for session (paginated) |
+
+**Action types:** `acknowledged` · `escalated` · `intervention_requested` · `closed` · `false_positive` · `note_added` · `system_archived`
+
+**Request body (POST):**
+
+```json
+{
+  "action_type": "acknowledged",
+  "actor": "operator-id or name",
+  "notes": "Optional free-text note",
+  "metadata": {}
+}
+```
+
+**Response (POST):** `{"ok": true, "action_id": "<uuid>"}`
+
+**Response (GET):**
+```json
+{
+  "items": [
+    { "id": "...", "incident_id": "...", "session_id": "...",
+      "action_type": "acknowledged", "actor": "alice", "notes": "...",
+      "created_at": "2026-05-21T15:00:00Z" }
+  ],
+  "total": 3, "page": 1, "per_page": 10, "total_pages": 1
+}
+```
+
+---
+
+### SIGTRACK Forensic Ledger
+
+Every archived incident is anchored to the [drand League of Entropy](https://drand.love/) public randomness beacon and chained via SHA-256. This makes records tamper-evident and independently verifiable.
+
+**Hash chain construction:**
+```
+record_hash = SHA256(prev_hash | canonical_json(payload) | beacon_randomness)
+```
+Where `prev_hash = "GENESIS"` for the first record.
+
+**Beacon fallback chain:** drand (3s cadence) → NIST Randomness Beacon v2.0 (60s) → offline timestamp.
+
+**Verification — anyone can verify a record:**
+```bash
+# 1. Fetch the beacon round stored in the record
+curl https://api.drand.sh/52db9ba70e0cc0f6eaf7803dd07447a1f5477735fd3f661792ba94600c84e971/public/{beacon_round}
+# 2. Confirm beacon_value matches .randomness
+# 3. Recompute record_hash and compare
+```
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/api/v2/sigtrack/verify-chain` | Admin | Verify full hash chain integrity |
+| GET | `/api/v2/sigtrack/incidents/{id}/verify` | Admin | Verify single incident hash |
+
+**Response (verify-chain):**
+```json
+{
+  "total_incidents": 42,
+  "chain_intact": true,
+  "broken_at": null,
+  "last_verified": "2026-05-21T16:00:00Z"
+}
+```
+
+**Response (verify single):**
+```json
+{ "ok": true,  "incident_id": "..." }
+{ "ok": false, "incident_id": "...", "reason": "hash_mismatch" }
+{ "ok": false, "incident_id": "...", "reason": "not_anchored" }
+```
+
+> **Pre-ledger records** (archived before 2026-05-21) have `record_hash=null` and return `reason: not_anchored`. They are not counted as chain violations.
 
 ---
 
