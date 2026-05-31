@@ -13,7 +13,7 @@ PSA-core is the standalone engine that powers [PSA](https://github.com/SiliconPs
 | Component | Function |
 |-----------|----------|
 | **PSA v2** | 7 micro-classifiers (C0–C4, C3-v3, CA), DRM session-level risk engine, SIGTRACK v2 incident archive, CPF3 behavioral snapshot analysis |
-| **PSA v3** | Multi-agent analysis — Swiss Cheese detection (SCS), contagion metrics (PPI, CAHS, WLS, CER, AGM), action-risk classification, HMM temporal prediction |
+| **PSA v3** | Multi-agent analysis — Swiss Cheese detection (SCS), contagion metrics (PPI, CAHS, WLS, CER, AGM), action-risk classification (C5/PAI), HMM temporal prediction |
 | **Browser Extension** | Chrome MV3 — real-time PSA monitoring of AI conversations |
 
 ---
@@ -87,10 +87,15 @@ sentence → MiniLM encoder (ONNX / ST fallback) → 384-dim embedding
 
 ## PSA v2 Metrics
 
+All metrics returned per turn by `POST /api/v2/psa/analyze`:
+
 | Metric | Full Name | Range | Description |
 |--------|-----------|-------|-------------|
 | **BHS** | Behavioral Health Score | 0–1 | Per-turn composite health. Low = degraded. `1 − (0.4×POI + 0.2×SD + 0.2×HRI + 0.2×PD×TD)` |
 | **POI** | Posture Oscillation Index | 0–1 | Variability of C1 postures across turns. High = unstable — no stable boundary. |
+| **PE** | Posture Entropy | 0 to log₂(N) | Shannon entropy of posture distribution. Low = uniform (normal or post-dissolution); High = active stress. |
+| **DPI** | Dissolution Position Index | 0–1 | Normalised mean ordinal position of CONCEDE/RESTRICT postures. 0 = no concession; ≥ 0.53 = active dissolution. |
+| **MPS** | Max Posture Span | 0 to 20 | Range of posture indices in a single response. High = wide behavioral range = high stress. |
 | **CPI** | Contextual Pressure Index | 0–1 | Adversarial pressure from user input (C0-derived). High = high user pressure. |
 | **IRS** | Input Risk Score | 0–1 | Clinical risk in user message — suicidality, dissociation, grandiosity, urgency. |
 | **RAS** | Response Alignment Score | 0–1 | Alignment of model response with guidelines. Sub-signals: `boundary_maintained`, `crisis_acknowledgment`, `reality_grounding`. |
@@ -159,6 +164,7 @@ Privacy-compliant incident archive. Stores posture sequences, not raw text.
 | **CER** — Context Erosion Rate | 0–1 | Rate at which adversarial context is lost through the graph. 0 = preserved; 1 = total loss. |
 | **CAHS** — Cross-Agent Health Score | 0–1 | Composite: `BHS_system × (1−|PPI|/2) × (1−cascade/depth) × WLS`. |
 | **SCS** — Swiss Cheese Score | 0–1 | Bayesian failure probability on the critical path — detects aligned holes across the agent pipeline. |
+| **PAI** — Posture-Action Incongruence | 0–4 | Mismatch between agent behavioral posture (BHS) and action risk level per tool call. High = dangerous action from conceding agent. |
 
 **SCS thresholds:**
 
@@ -169,6 +175,23 @@ Privacy-compliant incident archive. Stores posture sequences, not raw text.
 | red | 0.60–0.79 |
 | critical | ≥ 0.80 |
 
+### C5 — Action-Risk Classifier
+
+Classifies tool calls and code execution. Used to compute PAI.
+
+| Code | Name | Risk score |
+|------|------|-----------|
+| A0 | Read-Only Safe | 0.0 |
+| A1 | Read Sensitive | 1.0 |
+| A2 | Write Safe | 0.5 |
+| A3 | Write Destructive | 2.5 |
+| A4 | Execute Safe | 1.0 |
+| A5 | Execute Risky | 3.0 |
+| A6 | Network Safe | 0.5 |
+| A7 | Network Exfiltration | 3.5 |
+| A8 | Privilege Escalation | 3.5 |
+| A9 | System Control | 4.0 |
+
 ### PSA v3 Modules
 
 | Module | File | Purpose |
@@ -176,7 +199,41 @@ Privacy-compliant incident archive. Stores posture sequences, not raw text.
 | Graph Topology | `psa_v3/graph.py` | DAG of agent interactions |
 | Swiss Cheese | `psa_v3/bayesian_scs.py` | Bayesian alignment failure detection |
 | Contagion Metrics | `psa_v3/metrics.py` + `metrics_composite.py` | Cross-agent posture propagation |
+| Action Classifier | `psa_v3/actions.py` | C5 action-risk + PAI |
 | HMM Prediction | `psa_v3/temporal_hmm.py` | Future posture prediction |
+
+---
+
+## CPF3 — Contextual Pattern Framework v3
+
+Analyzes structured behavioral snapshots. Does not receive raw text — caller sends pre-computed indicators in a `snapshot` payload.
+
+**Output:** CPF score (0–100), risk level (GREEN/YELLOW/RED), per-category breakdown, L2 model classification, longitudinal forecast.
+
+**Alert thresholds — vary by subject type:**
+
+| subject_type | YELLOW | RED |
+|-------------|--------|-----|
+| `human` | ≥ 10 | ≥ 30 |
+| `ai_agent` | ≥ 5 | ≥ 15 |
+| `human+ai` | ≥ 7 | ≥ 20 |
+
+AI-involved subjects use lower thresholds because PSAv2/PSAv3 signals are pre-calibrated and more reliable than proxy indicators in the human-only path.
+
+**Scoring categories:**
+
+| # | Category |
+|---|----------|
+| 1 | Authorization & Access |
+| 2 | Information Handling |
+| 3 | Behavioral Deviations |
+| 4 | Affect & Emotional State |
+| 5 | Communication Patterns |
+| 6 | Technical Footprint |
+| 7 | Organizational Context |
+| 8 | Unconscious Signals |
+| 9 | AI & Automation (uses PSAv2/PSAv3 inputs) |
+| 10 | Network & Relationship |
 
 ---
 
