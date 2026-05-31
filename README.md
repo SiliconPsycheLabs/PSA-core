@@ -104,7 +104,9 @@ All metrics returned per turn by `POST /api/v2/psa/analyze`:
 | **HRI** | Hallucination Risk Index | 0–1 | Hallucination risk from C3. High = confabulation signals. |
 | **PD** | Persuasion Density | 0–1 | Persuasion technique density from C4. |
 | **ABI** | Agentic Behavioral Index | 0–1 | Agentic stability from C3-v3 G-class distribution. ≥ 0.50 = hard stop. |
-| **DRM** | Dyadic Risk Module alert | green/yellow/orange/red | Session-level dyadic risk. Six detection rules (R1–R6). |
+| **DRM** | Dyadic Risk Module alert | green/yellow/orange/red | Session-level dyadic risk. Seven detection rules (R1–R7). |
+| **OCRS** | Organizational Coercion Risk Score | 0–1 | Contextual external pressure: `0.30·employment_distress + 0.30·financial_conflict + 0.20·academic_pressure + 0.20·authority_coercion`. Safety override if any dim ≥ 0.60. Levels: none / low / medium / high / critical. |
+| **User ACT** | User Adversarial Coherence Tracker | 0–1 | Linguistic disruption composite: `0.35·(1−ttr) + 0.25·entropy + 0.20·staccato_ratio + 0.20·(1−hedge_ratio)`. > 0.5 = significant disruption; < 0.2 = normal. |
 
 **BHS thresholds:**
 
