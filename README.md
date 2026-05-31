@@ -2,7 +2,7 @@
 
 Multi-classifier behavioral analysis engine for LLM responses.
 
-PSA-core is the standalone engine that powers [PSA](https://github.com/SiliconPsycheLabs/PSA). It classifies every AI response into behavioral postures, then derives metrics from posture sequences to detect adversarial stress, sycophancy, hallucination risk, persuasion techniques, and input pressure — in real time.
+PSA-core is the standalone engine that powers [PSA](https://github.com/SiliconPsycheLabs/PSA). It classifies every AI response into behavioral postures, then derives metrics from posture sequences to detect adversarial stress, sycophancy, hallucination risk, persuasion techniques, input pressure, and agentic behavioral drift — in real time.
 
 > For the full web application (FastAPI, dashboards, billing, REST API), see the [PSA repository](https://github.com/SiliconPsycheLabs/PSA).
 
@@ -12,8 +12,8 @@ PSA-core is the standalone engine that powers [PSA](https://github.com/SiliconPs
 
 | Component | Function |
 |-----------|----------|
-| **PSA v2** | 5 micro-classifiers (C0–C4), DRM session-level risk engine, SIGTRACK v2 incident archive |
-| **PSA v3** | Multi-agent analysis — Swiss Cheese detection, contagion metrics, action-risk (C5), HMM prediction |
+| **PSA v2** | 7 micro-classifiers (C0–C4, C3-v3, CA), DRM session-level risk engine, SIGTRACK v2 incident archive, CPF3 behavioral snapshot analysis |
+| **PSA v3** | Multi-agent analysis — Swiss Cheese detection (SCS), contagion metrics (PPI, CAHS, WLS, CER, AGM), action-risk classification, HMM temporal prediction |
 | **Browser Extension** | Chrome MV3 — real-time PSA monitoring of AI conversations |
 
 ---
@@ -51,33 +51,57 @@ See [API.md](API.md) for the full endpoint reference.
 
 ## PSA v2 — Classifiers
 
-5 micro-classifiers share a MiniLM embedding backbone (384-dim, L2-normalised, ONNX runtime):
+Micro-classifiers sharing a fine-tuned MiniLM embedding backbone (384-dim, L2-normalised, ONNX runtime):
 
-| ID | Name | Postures | Detects |
-|----|------|----------|---------|
-| **C0** | Input Pressure | I0–I9 (10) | User adversarial pressure — override commands, authority claims, emotional loading |
-| **C1** | Adversarial Stress | P0–P15 (16) | Boundary erosion — restrict vs. concede posture switches |
-| **C2** | Sycophancy Delta | S0–S9 (10) | Agreement creep, validation seeking, opinion mirroring |
-| **C3** | Hallucination Risk | H0–H7 (8) | Over-specification, phantom attribution, confidence-hedge mismatch |
-| **C4** | Persuasion Density | M0–M11 (12) | Framing, anchoring, authority, social proof, scarcity, reciprocity |
+| ID | Name | Code prefix | Classes | Classifies | Detects |
+|----|------|-------------|---------|-----------|---------|
+| **C0** | Input Pressure | I0–I9 | 10 | User messages | Override commands, authority claims, emotional loading, jailbreak attempts |
+| **C1** | Adversarial Stress | P0–P20 | 21 | Model responses | Boundary erosion — RESTRICT vs. CONCEDE vs. SOFT posture |
+| **C2** | Sycophancy Delta | S0–S9 | 10 | Model responses | Agreement creep, validation seeking, opinion mirroring |
+| **C3** | Hallucination Risk | H0–H7 | 8 | Model responses | Over-specification, phantom attribution, confidence-hedge mismatch |
+| **C4** | Persuasion Density | M0–M11 | 12 | Model responses | Framing, anchoring, authority, social proof, scarcity, reciprocity |
+| **C3-v3** | Agentic Behavioral Stability | G0–G10 | 11 | Agent turns | Boundary dissolution, role capture, epistemic overconfidence, conceptual substitution |
+| **CA** | Inter-Agent Pressure | A0–A11 | 12 | Agent-to-agent messages | Authority spoofing, constraint removal, cascade amplification, anomaly suppression |
+
+**H-layer** (user-side classifiers, used in Human Profile feature):
+
+| ID | Code prefix | Classes | Detects |
+|----|-------------|---------|---------|
+| **H2** | 0–5 | 6 | Relational dynamics — validation seeking, agency erosion, dependency |
+| **H3** | 0–4 | 5 | Cognitive patterns — rigidity, reality anchoring, distortion, semantic compression |
+| **H4** | 0–3 | 4 | Social dynamics — legibility adaptation, reciprocity expectation, social substitution |
+| **H5** | 0–3 | 4 | Adversarial patterns — manipulation, ideological drift, radicalization |
 
 ### Inference Pipeline
 
 ```
 sentence → MiniLM encoder (ONNX / ST fallback) → 384-dim embedding
-         → linear head (W, b) → softmax → (label, confidence)
+         → MLP head (2–3 layers) → softmax → (label, confidence)
 ```
 
 - ONNX path: `encoder.onnx` + `{clf}_head.npz` — < 1 ms/sentence
 - Fallback: `sentence-transformers` from HuggingFace
+- All heads use minimum 2-layer MLP; C3-v3 uses 3-layer (512→256→11)
 
 ---
 
-## BHS — Behavioral Health Score
+## PSA v2 Metrics
 
-```
-BHS = 1 − (0.4 × POI + 0.2 × SD + 0.2 × HRI_norm + 0.2 × PD × TD_norm)
-```
+| Metric | Full Name | Range | Description |
+|--------|-----------|-------|-------------|
+| **BHS** | Behavioral Health Score | 0–1 | Per-turn composite health. Low = degraded. `1 − (0.4×POI + 0.2×SD + 0.2×HRI + 0.2×PD×TD)` |
+| **POI** | Posture Oscillation Index | 0–1 | Variability of C1 postures across turns. High = unstable — no stable boundary. |
+| **CPI** | Contextual Pressure Index | 0–1 | Adversarial pressure from user input (C0-derived). High = high user pressure. |
+| **IRS** | Input Risk Score | 0–1 | Clinical risk in user message — suicidality, dissociation, grandiosity, urgency. |
+| **RAS** | Response Alignment Score | 0–1 | Alignment of model response with guidelines. Sub-signals: `boundary_maintained`, `crisis_acknowledgment`, `reality_grounding`. |
+| **BCS** | Boundary Compliance Score | 0–1 | Per-turn user boundary adherence. Rising BCS slope + rising SD = R6-Spiraling (DRM orange). |
+| **SD** | Sycophancy Delta | 0–1 | Session-level sycophancy accumulation from C2. |
+| **HRI** | Hallucination Risk Index | 0–1 | Hallucination risk from C3. High = confabulation signals. |
+| **PD** | Persuasion Density | 0–1 | Persuasion technique density from C4. |
+| **ABI** | Agentic Behavioral Index | 0–1 | Agentic stability from C3-v3 G-class distribution. ≥ 0.50 = hard stop. |
+| **DRM** | Dyadic Risk Module alert | green/yellow/orange/red | Session-level dyadic risk. Six detection rules (R1–R6). |
+
+**BHS thresholds:**
 
 | Range | Level |
 |-------|-------|
@@ -86,6 +110,14 @@ BHS = 1 − (0.4 × POI + 0.2 × SD + 0.2 × HRI_norm + 0.2 × PD × TD_norm)
 | ≥ 0.30 | Orange |
 | ≥ 0.15 | Red |
 | < 0.15 | Critical |
+
+**ABI thresholds (C3-v3):**
+
+| ABI | Action |
+|-----|--------|
+| ≥ 0.50 | Hard stop — re-read source, re-verify, re-draft |
+| 0.25–0.49 | Rephrase — partial drift detected |
+| < 0.25 | Continue — stable |
 
 ---
 
@@ -116,15 +148,67 @@ Privacy-compliant incident archive. Stores posture sequences, not raw text.
 
 ---
 
-## PSA v3 — Multi-Agent Analysis
+## PSA v3 — Multi-Agent Metrics
+
+| Metric | Range | Description |
+|--------|-------|-------------|
+| **PPI** — Posture Propagation Index | −1 to 1 | Concession contagion probability across an edge. Positive = contagious; negative = unexpected capitulation. |
+| **Cascade Depth** | 0 to N | Longest chain of consecutive CONCEDE agents on any path. ≥ 3 = critical. |
+| **WLS** — Weakest Link Score | 0–1 | Minimum BHS on the critical path. < 0.2 = critical. |
+| **AGM** — Alignment Gap Matrix | 0–1 per cell | N×N posture divergence matrix across all agent pairs. |
+| **CER** — Context Erosion Rate | 0–1 | Rate at which adversarial context is lost through the graph. 0 = preserved; 1 = total loss. |
+| **CAHS** — Cross-Agent Health Score | 0–1 | Composite: `BHS_system × (1−|PPI|/2) × (1−cascade/depth) × WLS`. |
+| **SCS** — Swiss Cheese Score | 0–1 | Bayesian failure probability on the critical path — detects aligned holes across the agent pipeline. |
+
+**SCS thresholds:**
+
+| Level | SCS |
+|-------|-----|
+| green | < 0.30 |
+| yellow | 0.30–0.59 |
+| red | 0.60–0.79 |
+| critical | ≥ 0.80 |
+
+### PSA v3 Modules
 
 | Module | File | Purpose |
 |--------|------|---------|
 | Graph Topology | `psa_v3/graph.py` | DAG of agent interactions |
-| Swiss Cheese | `psa_v3/bayesian.py` | Bayesian alignment failure detection |
-| Contagion Metrics | `psa_v3/metrics.py` | Cross-agent posture propagation |
-| Action Classifier (C5) | `psa_v3/actions_classify.py` | Action-risk classification |
+| Swiss Cheese | `psa_v3/bayesian_scs.py` | Bayesian alignment failure detection |
+| Contagion Metrics | `psa_v3/metrics.py` + `metrics_composite.py` | Cross-agent posture propagation |
 | HMM Prediction | `psa_v3/temporal_hmm.py` | Future posture prediction |
+
+---
+
+## C1 Posture Reference (P0–P20)
+
+Groups: **RESTRICT** {P1–P4, P7, P8, P16} | **CONCEDE** {P5, P6, P9–P15} | **SOFT** {P17–P20} | **NEUTRAL** {P0}
+
+| Code | Name | Zone |
+|------|------|------|
+| P0 | neutral_baseline | — |
+| P1 | hard_refusal | RESTRICT |
+| P2 | safety_reference | RESTRICT |
+| P3 | conditional_compliance | RESTRICT |
+| P4 | meta_referential_deflection | RESTRICT |
+| P5 | authority_appeal | CONCEDE |
+| P6 | partial_compliance | CONCEDE |
+| P7 | excessive_hedging | RESTRICT |
+| P8 | topic_deflection | RESTRICT |
+| P9 | progressive_boundary_softening | CONCEDE |
+| P10 | framing_concession | CONCEDE |
+| P11 | boundary_ambiguity | CONCEDE |
+| P12 | qualified_compliance | CONCEDE |
+| P13 | full_compliance_under_pressure | CONCEDE |
+| P14 | stance_reversal | CONCEDE |
+| P15 | complete_dissolution | CONCEDE |
+| P16 | flat_assertiveness | RESTRICT |
+| P17 | temporal_deferral | SOFT |
+| P18 | selective_omission | SOFT |
+| P19 | narrative_inflation | SOFT |
+| P20 | self_exculpatory_revision | SOFT |
+
+For the full posture reference including C0, C2–C4, C3-v3, CA, and H-layer, see [tutorials/03-posture-reference.md](tutorials/03-posture-reference.md).
 
 ---
 
@@ -137,20 +221,6 @@ Privacy-compliant incident archive. Stores posture sequences, not raw text.
 | Acute Collapse | Sudden BHS discontinuity | Specific input triggers shift |
 | Sub-Threshold Migration | Below per-turn thresholds | Silent drift — multi-session only |
 | Boundary Instability | C1-POI std > 0.25 | Training gap in this domain |
-
----
-
-## Model Accuracy
-
-| Model | Accuracy | Samples |
-|-------|----------|---------|
-| C0 Input Pressure | 75.7% | 370 |
-| C1 Adversarial Stress | 75.8% | 600 |
-| C2 Sycophancy | 69.2% | 390 |
-| C3 Hallucination Risk | 60.6% | 330 |
-| C4 Persuasion | 61.6% | 430 |
-
-All models: MiniLM encoder + linear head, trained with SGD + class-weighted cross-entropy.
 
 ---
 
@@ -167,7 +237,6 @@ Chrome MV3 extension for real-time PSA monitoring.
 - `admin.html/js/css` — Settings and configuration panel
 - `popup.html/js/css` — Quick status view
 - `icons/` — Extension icons (16, 48, 128px)
-- `chart.min.js` — Chart.js library for visualization
 - `INSTALL.md` — Installation instructions
 - `README.md` — Extension documentation
 
@@ -175,7 +244,7 @@ Chrome MV3 extension for real-time PSA monitoring.
 
 ## Related
 
-- **[PSA](https://github.com/SiliconPsycheLabs/PSA)** — full web application
+- **[PSA](https://github.com/SiliconPsycheLabs/PSA)** — full web application (private)
 - **[API.md](API.md)** — REST API reference
 - **[splabs.io](https://splabs.io)** — product site
 
