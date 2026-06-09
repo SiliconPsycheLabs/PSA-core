@@ -47,122 +47,234 @@ function buildExplanation(result) {
 // ── PDF export ────────────────────────────────────────────────────────────────
 
 function downloadPDF(text, result) {
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({ unit: 'pt', format: 'letter' });
-
   const reliability = rdsToReliability(result.rds ?? 0);
   const verdict     = result.verdict ?? 'unknown';
   const explanation = buildExplanation(result);
-  const now         = new Date().toUTCString();
-  const preview     = text.slice(0, 300) + (text.length > 300 ? '…' : '');
+  const now         = new Date();
 
-  const margin = 60;
-  let y = 70;
+  const certBytes = new Uint8Array(6);
+  crypto.getRandomValues(certBytes);
+  const certId  = 'PSA-' + Array.from(certBytes).map(b => b.toString(16).padStart(2, '0')).join('').toUpperCase();
+  const timestamp = now.toISOString().replace('T', ' ').slice(0, 19) + ' UTC';
+  const preview   = text.slice(0, 500) + (text.length > 500 ? '…' : '');
 
-  // Header rule
-  doc.setDrawColor(184, 165, 106);
-  doc.setLineWidth(1.5);
-  doc.line(margin, y, 552, y);
-  y += 18;
+  // Design tokens — mirrors /rdm-demo + psa_styles.css
+  const C = {
+    bg:     '#0a0a0f',
+    panel:  '#12121a',
+    card:   '#1a1a26',
+    hover:  '#22222f',
+    border: '#2a2a3a',
+    txtPri: '#e8e8f0',
+    txtSec: '#8888a0',
+    txtDim: '#555568',
+    gold:   '#b8a56a',
+    green:  '#22c55e',
+    amber:  '#fbbf24',
+    red:    '#ef4444',
+    indigo: '#6366f1',
+  };
 
-  // Title
-  doc.setFont('times', 'bold');
-  doc.setFontSize(18);
-  doc.setTextColor(30, 30, 40);
-  doc.text('PSA Legal Certification', margin, y);
-  y += 10;
+  const vColor = verdict === 'stable' ? C.green : verdict === 'weak_signal' ? C.amber : C.red;
+  const vLabel = { stable: '✓  STABLE', weak_signal: '~  WEAK SIGNAL', drift: '⚠  DRIFT DETECTED' }[verdict] ?? verdict.toUpperCase();
+  const rds   = result.rds ?? 0;
+  const jac   = result.jaccard ?? 0;
+  const fpc   = result.framing_score ?? 0;
+  const docs  = result.context_docs || [];
 
-  doc.setDrawColor(184, 165, 106);
-  doc.setLineWidth(0.5);
-  doc.line(margin, y, 552, y);
-  y += 20;
+  function rdsColor(v) { return v >= 0.5 ? C.red : v >= 0.25 ? C.amber : C.green; }
+  function fpcColor(v) { return v >= 0.7 ? C.red : v >= 0.4 ? C.amber : C.green; }
 
-  // Meta
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9);
-  doc.setTextColor(100, 100, 120);
-  doc.text(`Analyzed: ${now}`, margin, y);
-  y += 14;
-  doc.text('Service: PSA Legal — Retrieval Drift Monitor (splabs.io)', margin, y);
-  y += 24;
+  function docRows(list) {
+    if (!list.length) return [[
+      { text: 'No documents retrieved', style: 'docText', colSpan: 3, alignment: 'center', margin: [8, 10, 8, 10] }, {}, {}
+    ]];
+    return list.map(d => [
+      { text: d.label || 'unknown', style: 'docLabel', color: C.indigo,  margin: [8, 6, 4, 6] },
+      { text: (d.text_snippet || '').slice(0, 110) + (d.text_snippet && d.text_snippet.length > 110 ? '…' : ''), style: 'docText', margin: [4, 6, 4, 6] },
+      { text: (d.score || 0).toFixed(3), style: 'docScore', color: rds >= 0.7 ? C.red : C.txtSec, alignment: 'right', margin: [4, 6, 8, 6] },
+    ]);
+  }
 
-  // Score block
-  doc.setFont('times', 'bold');
-  doc.setFontSize(42);
-  const color = verdict === 'stable' ? [76, 175, 130] : verdict === 'weak_signal' ? [192, 164, 58] : [192, 90, 90];
-  doc.setTextColor(...color);
-  doc.text(`${reliability}/100`, margin, y);
-  y += 8;
+  const docsSection = docs.length > 0 ? [
+    { text: 'RETRIEVED DOCUMENTS', style: 'sectionHdr', margin: [0, 0, 0, 5] },
+    {
+      table: {
+        widths: [90, '*', 44],
+        headerRows: 1,
+        body: [
+          [
+            { text: 'Label',  style: 'tblHdr', fillColor: C.hover, margin: [8, 7, 4, 7] },
+            { text: 'Excerpt', style: 'tblHdr', fillColor: C.hover, margin: [4, 7, 4, 7] },
+            { text: 'Score',  style: 'tblHdr', fillColor: C.hover, alignment: 'right', margin: [4, 7, 8, 7] },
+          ],
+          ...docRows(docs)
+        ]
+      },
+      layout: {
+        hLineWidth: (i) => (i === 0 || i === 1) ? 0.5 : 0.25,
+        vLineWidth: () => 0,
+        hLineColor: () => C.border,
+        fillColor:  (row) => row % 2 === 0 ? C.card : C.hover,
+      },
+      margin: [0, 0, 0, 20]
+    }
+  ] : [];
 
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(11);
-  const verdictLabel = { stable: 'STABLE', weak_signal: 'WEAK SIGNAL', drift: 'DRIFT DETECTED' }[verdict] ?? verdict.toUpperCase();
-  doc.text(verdictLabel, margin, y);
-  y += 24;
+  const docDef = {
+    pageSize:    'LETTER',
+    pageMargins: [56, 56, 56, 72],
 
-  // Explanation
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(10);
-  doc.setTextColor(50, 50, 70);
-  const lines = doc.splitTextToSize(explanation, 432);
-  doc.text(lines, margin, y);
-  y += lines.length * 14 + 20;
+    background(currentPage, pageSize) {
+      return { canvas: [{ type: 'rect', x: 0, y: 0, w: pageSize.width, h: pageSize.height, color: C.bg }] };
+    },
 
-  // Metrics table
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(9);
-  doc.setTextColor(100, 100, 120);
-  doc.text('TECHNICAL METRICS', margin, y);
-  y += 12;
+    content: [
+      // Header
+      {
+        columns: [
+          {
+            stack: [
+              { text: 'PSA Legal Certification', style: 'title' },
+              { text: 'Retrieval Drift Monitor  ·  SiliconPsycheLabs', style: 'subtitle' },
+            ],
+            width: '*'
+          },
+          {
+            stack: [
+              { text: certId,    style: 'certId',   alignment: 'right' },
+              { text: timestamp, style: 'metaSm',   alignment: 'right' },
+            ],
+            width: 200
+          }
+        ],
+        columnGap: 16,
+        margin: [0, 0, 0, 8]
+      },
+      { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 500, y2: 0, lineWidth: 1.5, lineColor: C.gold }], margin: [0, 0, 0, 20] },
 
-  const metrics = [
-    ['Retrieval Drift Score (RDS)', (result.rds ?? 0).toFixed(4)],
-    ['Jaccard similarity', (result.jaccard ?? 0).toFixed(4)],
-    ['Framing pressure (FPC)', (result.framing_score ?? 0).toFixed(4)],
-    ['RDM triggered', result.rdm_triggered ? 'Yes' : 'No'],
-    ['Domain', result.domain ?? 'legal'],
-  ];
+      // Score block
+      {
+        table: {
+          widths: ['*'],
+          body: [[{
+            stack: [
+              { text: String(reliability),                                 style: 'scoreBig',  color: vColor,  alignment: 'center', margin: [0, 18, 0, 2] },
+              { text: '/ 100  —  RELIABILITY SCORE',                  style: 'scoreLbl',  alignment: 'center', margin: [0, 0, 0, 12] },
+              {
+                table: { widths: ['*'], body: [[{ text: vLabel, style: 'verdictTxt', color: vColor, alignment: 'center', fillColor: C.bg, margin: [0, 7, 0, 7] }]] },
+                layout: { defaultBorder: false, hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => vColor, vLineColor: () => vColor },
+                margin: [80, 0, 80, 14]
+              },
+              { text: explanation, style: 'explTxt', alignment: 'center', margin: [24, 0, 24, 20] }
+            ],
+            fillColor: C.card
+          }]]
+        },
+        layout: {
+          defaultBorder: false,
+          hLineWidth: (i, node) => (i === 0 || i === node.table.body.length) ? 2 : 0,
+          vLineWidth: (i, node) => (i === 0 || i === node.table.widths.length) ? 2 : 0,
+          hLineColor: () => vColor,
+          vLineColor: () => vColor,
+        },
+        margin: [0, 0, 0, 20]
+      },
 
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9);
-  doc.setTextColor(60, 60, 80);
-  metrics.forEach(([k, v]) => {
-    doc.text(`${k}:`, margin, y);
-    doc.text(v, 320, y);
-    y += 13;
-  });
-  y += 14;
+      // Metrics
+      { text: 'TECHNICAL METRICS', style: 'sectionHdr', margin: [0, 0, 0, 5] },
+      {
+        table: {
+          widths: ['*', 120],
+          body: [
+            [
+              { text: 'Retrieval Drift Score (RDS)', style: 'mKey', fillColor: C.card,  margin: [10, 8, 0, 8] },
+              { text: rds.toFixed(4), style: 'mVal', color: rdsColor(rds), alignment: 'right', fillColor: C.card,  margin: [0, 8, 10, 8] }
+            ],
+            [
+              { text: 'Jaccard Similarity',         style: 'mKey', fillColor: C.hover, margin: [10, 8, 0, 8] },
+              { text: jac.toFixed(4), style: 'mVal', alignment: 'right',                fillColor: C.hover, margin: [0, 8, 10, 8] }
+            ],
+            [
+              { text: 'Framing Pressure (FPC)',     style: 'mKey', fillColor: C.card,  margin: [10, 8, 0, 8] },
+              { text: fpc.toFixed(4), style: 'mVal', color: fpcColor(fpc), alignment: 'right', fillColor: C.card,  margin: [0, 8, 10, 8] }
+            ],
+            [
+              { text: 'RDM Triggered',              style: 'mKey', fillColor: C.hover, margin: [10, 8, 0, 8] },
+              { text: result.rdm_triggered ? 'Yes' : 'No', style: 'mVal', alignment: 'right', fillColor: C.hover, margin: [0, 8, 10, 8] }
+            ],
+            [
+              { text: 'Domain',                     style: 'mKey', fillColor: C.card,  margin: [10, 8, 0, 8] },
+              { text: result.domain ?? 'legal',     style: 'mVal', alignment: 'right', fillColor: C.card,  margin: [0, 8, 10, 8] }
+            ],
+          ]
+        },
+        layout: { hLineWidth: () => 0.5, vLineWidth: () => 0, hLineColor: () => C.border },
+        margin: [0, 0, 0, 20]
+      },
 
-  // Query preview
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(9);
-  doc.setTextColor(100, 100, 120);
-  doc.text('ANALYZED TEXT (EXCERPT)', margin, y);
-  y += 12;
+      // Documents
+      ...docsSection,
 
-  doc.setFont('helvetica', 'italic');
-  doc.setFontSize(8.5);
-  doc.setTextColor(80, 80, 100);
-  const previewLines = doc.splitTextToSize(preview, 432);
-  doc.text(previewLines, margin, y);
-  y += previewLines.length * 12 + 20;
+      // Analyzed text excerpt
+      { text: 'ANALYZED TEXT (EXCERPT)', style: 'sectionHdr', margin: [0, 0, 0, 5] },
+      {
+        table: {
+          widths: ['*'],
+          body: [[{ text: preview, style: 'prevTxt', margin: [14, 10, 14, 10], fillColor: C.panel }]]
+        },
+        layout: {
+          defaultBorder: false,
+          hLineWidth: () => 0,
+          vLineWidth: (i) => i === 0 ? 2 : 0,
+          vLineColor: () => C.gold,
+        },
+      },
+    ],
 
-  // Footer
-  doc.setDrawColor(184, 165, 106);
-  doc.setLineWidth(0.5);
-  doc.line(margin, y, 552, y);
-  y += 12;
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8);
-  doc.setTextColor(140, 140, 160);
-  doc.text(
-    'This report is generated by PSA Legal and is intended for internal due diligence purposes only. ' +
-    'It does not constitute legal advice.',
-    margin, y, { maxWidth: 432 }
-  );
+    footer(currentPage, pageCount) {
+      return {
+        margin: [56, 8, 56, 0],
+        stack: [
+          { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 500, y2: 0, lineWidth: 0.5, lineColor: C.border }] },
+          {
+            columns: [
+              { text: 'This report is generated by PSA Legal for internal due diligence purposes only. It does not constitute legal advice.', style: 'footerTxt', width: '*' },
+              { text: 'splabs.io', style: 'footerBrand', alignment: 'right', width: 56 }
+            ],
+            columnGap: 10,
+            margin: [0, 5, 0, 0]
+          }
+        ]
+      };
+    },
 
-  const filename = `PSA_Legal_Report_${new Date().toISOString().slice(0, 10)}.pdf`;
-  doc.save(filename);
+    styles: {
+      title:      { fontSize: 17, bold: true,  color: C.gold },
+      subtitle:   { fontSize: 9,               color: C.txtSec, margin: [0, 3, 0, 0] },
+      certId:     { fontSize: 10, bold: true,  color: C.gold, characterSpacing: 1 },
+      metaSm:     { fontSize: 8,               color: C.txtSec, margin: [0, 3, 0, 0] },
+      scoreBig:   { fontSize: 68, bold: true },
+      scoreLbl:   { fontSize: 10,              color: C.txtSec, characterSpacing: 2 },
+      verdictTxt: { fontSize: 12, bold: true,  characterSpacing: 1 },
+      explTxt:    { fontSize: 10,              color: C.txtSec, lineHeight: 1.45 },
+      sectionHdr: { fontSize: 8,  bold: true,  color: C.gold,   characterSpacing: 1 },
+      mKey:       { fontSize: 9,               color: C.txtPri },
+      mVal:       { fontSize: 9,  bold: true,  color: C.txtPri },
+      tblHdr:     { fontSize: 8,  bold: true,  color: C.txtSec, characterSpacing: 0.5 },
+      docLabel:   { fontSize: 8,  bold: true },
+      docText:    { fontSize: 8,               color: C.txtSec, lineHeight: 1.4 },
+      docScore:   { fontSize: 8,  bold: true },
+      prevTxt:    { fontSize: 9,  italics: true, color: C.txtSec, lineHeight: 1.45 },
+      footerTxt:  { fontSize: 7.5,             color: C.txtDim },
+      footerBrand:{ fontSize: 7.5, bold: true, color: C.gold },
+    },
+
+    defaultStyle: { font: 'Roboto', color: C.txtPri, fontSize: 9 }
+  };
+
+  const filename = `PSA_Legal_${certId}_${now.toISOString().slice(0, 10)}.pdf`;
+  pdfMake.createPdf(docDef).download(filename);
 }
 
 // ── API call ──────────────────────────────────────────────────────────────────
