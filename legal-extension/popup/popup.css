@@ -1,0 +1,257 @@
+/* PSA Legal — professional, muted palette inspired by LexisNexis Advance */
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:          #1c1e26;
+  --bg-card:     #23263a;
+  --bg-input:    #1a1c28;
+  --border:      #2e3250;
+  --text-primary:   #e4e6f0;
+  --text-secondary: #8b90b0;
+  --text-hint:      #5a5f7a;
+  --accent:      #b8a56a;   /* muted gold — legal gravitas */
+  --green:       #4caf82;
+  --amber:       #c0a43a;
+  --red:         #c05a5a;
+  --radius:      6px;
+  --font:        'Georgia', 'Times New Roman', serif;
+  --font-ui:     -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+html, body {
+  width: 320px;
+  min-height: 200px;
+  background: var(--bg);
+  color: var(--text-primary);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.view { display: flex; flex-direction: column; }
+.view.hidden { display: none !important; }
+
+/* ── Header ── */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.logo {
+  font-family: var(--font);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--accent);
+  letter-spacing: 0.04em;
+}
+
+.icon-btn {
+  background: none;
+  border: none;
+  color: var(--text-hint);
+  cursor: pointer;
+  font-size: 15px;
+  padding: 2px 4px;
+  border-radius: var(--radius);
+  transition: color 0.15s;
+}
+.icon-btn:hover { color: var(--text-secondary); }
+
+.back-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 2px 4px;
+}
+.back-btn:hover { color: var(--text-primary); }
+
+/* ── Idle ── */
+.idle-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 28px 20px;
+  gap: 12px;
+}
+.idle-icon { font-size: 32px; opacity: 0.4; }
+.idle-text { color: var(--text-secondary); text-align: center; font-size: 12px; }
+
+/* ── Ready ── */
+.ready-body { padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+
+.detected-badge {
+  display: inline-block;
+  background: #2a2c1a;
+  color: var(--amber);
+  border: 1px solid var(--amber);
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  padding: 2px 8px;
+  align-self: flex-start;
+  text-transform: uppercase;
+}
+
+.preview {
+  color: var(--text-secondary);
+  font-size: 11px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+  max-height: 54px;
+  overflow: hidden;
+  line-height: 1.4;
+  font-style: italic;
+}
+
+/* ── Loading ── */
+.loading-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 36px 20px;
+  gap: 14px;
+}
+.spinner {
+  width: 28px;
+  height: 28px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-text { color: var(--text-secondary); font-size: 12px; }
+
+/* ── Result ── */
+.result-body { padding: 16px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+
+.score-ring {
+  width: 86px;
+  height: 86px;
+  border-radius: 50%;
+  border: 4px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin: 4px 0;
+  transition: border-color 0.3s;
+}
+.score-ring.green { border-color: var(--green); }
+.score-ring.amber { border-color: var(--amber); }
+.score-ring.red   { border-color: var(--red); }
+
+.score-number {
+  font-family: var(--font);
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--text-primary);
+}
+.score-label { font-size: 10px; color: var(--text-hint); margin-top: 1px; }
+
+.verdict-chip {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 3px 10px;
+  border-radius: 3px;
+}
+.verdict-chip.stable      { background: #1a2e24; color: var(--green); border: 1px solid var(--green); }
+.verdict-chip.weak_signal { background: #2a2818; color: var(--amber); border: 1px solid var(--amber); }
+.verdict-chip.drift       { background: #2a1818; color: var(--red);   border: 1px solid var(--red); }
+
+.explanation {
+  color: var(--text-secondary);
+  font-size: 12px;
+  text-align: center;
+  line-height: 1.5;
+  padding: 0 4px;
+}
+
+.result-meta {
+  color: var(--text-hint);
+  font-size: 10px;
+  text-align: center;
+}
+
+.result-actions { display: flex; flex-direction: column; gap: 6px; width: 100%; }
+
+/* ── Error ── */
+.error-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 28px 20px;
+  gap: 12px;
+}
+.error-icon {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  background: #2a1818;
+  border: 2px solid var(--red);
+  color: var(--red);
+  font-size: 18px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.error-text { color: var(--text-secondary); font-size: 12px; text-align: center; }
+
+/* ── Settings ── */
+.settings-body { padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+.field-label { font-size: 11px; color: var(--text-secondary); font-weight: 600; letter-spacing: 0.04em; }
+.field-input {
+  width: 100%;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-primary);
+  font-size: 12px;
+  padding: 7px 10px;
+  outline: none;
+  font-family: 'Courier New', monospace;
+}
+.field-input:focus { border-color: var(--accent); }
+.settings-hint { color: var(--text-hint); font-size: 11px; }
+
+/* ── Buttons ── */
+.btn-primary {
+  width: 100%;
+  background: var(--accent);
+  color: #1a1810;
+  border: none;
+  border-radius: var(--radius);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 9px 14px;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.btn-primary:hover { opacity: 0.88; }
+.btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.btn-secondary {
+  width: 100%;
+  background: none;
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 12px;
+  padding: 7px 14px;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+.btn-secondary:hover { border-color: var(--text-secondary); color: var(--text-primary); }

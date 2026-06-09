@@ -1,0 +1,303 @@
+const API_BASE = 'https://splabs.io';
+
+// ── View helpers ──────────────────────────────────────────────────────────────
+
+const views = ['idle', 'ready', 'loading', 'result', 'error', 'settings'];
+
+function showView(name) {
+  views.forEach(v => {
+    document.getElementById(`view-${v}`).classList.toggle('hidden', v !== name);
+  });
+}
+
+// ── State ─────────────────────────────────────────────────────────────────────
+
+let currentText = '';
+let lastResult  = null;
+
+// ── Score helpers ─────────────────────────────────────────────────────────────
+
+function rdsToReliability(rds) {
+  return Math.round((1 - Math.min(rds, 1)) * 100);
+}
+
+function verdictColor(verdict) {
+  if (verdict === 'stable')      return 'green';
+  if (verdict === 'weak_signal') return 'amber';
+  return 'red';
+}
+
+function buildExplanation(result) {
+  const { verdict, framing_score, jaccard, rds } = result;
+  const fs = framing_score ?? 0;
+
+  if (verdict === 'stable') {
+    return 'Retrieval appears balanced. Results are consistent with the reference corpus — no significant directional bias detected.';
+  }
+  if (verdict === 'weak_signal') {
+    return `Moderate divergence detected (RDS ${(rds ?? 0).toFixed(2)}). Some relevant counterarguments may be underrepresented. Manual spot-check recommended.`;
+  }
+  // drift
+  if (fs >= 0.5) {
+    return `Directional bias detected. The augmented query suppressed counterarguments present in the reference corpus. Framing pressure score: ${fs.toFixed(2)}.`;
+  }
+  return `Retrieval drift detected (RDS ${(rds ?? 0).toFixed(2)}). Results diverge from the neutral reference corpus. Independent verification recommended before relying on this output.`;
+}
+
+// ── PDF export ────────────────────────────────────────────────────────────────
+
+function downloadPDF(text, result) {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: 'pt', format: 'letter' });
+
+  const reliability = rdsToReliability(result.rds ?? 0);
+  const verdict     = result.verdict ?? 'unknown';
+  const explanation = buildExplanation(result);
+  const now         = new Date().toUTCString();
+  const preview     = text.slice(0, 300) + (text.length > 300 ? '…' : '');
+
+  const margin = 60;
+  let y = 70;
+
+  // Header rule
+  doc.setDrawColor(184, 165, 106);
+  doc.setLineWidth(1.5);
+  doc.line(margin, y, 552, y);
+  y += 18;
+
+  // Title
+  doc.setFont('times', 'bold');
+  doc.setFontSize(18);
+  doc.setTextColor(30, 30, 40);
+  doc.text('PSA Legal Certification', margin, y);
+  y += 10;
+
+  doc.setDrawColor(184, 165, 106);
+  doc.setLineWidth(0.5);
+  doc.line(margin, y, 552, y);
+  y += 20;
+
+  // Meta
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.setTextColor(100, 100, 120);
+  doc.text(`Analyzed: ${now}`, margin, y);
+  y += 14;
+  doc.text('Service: PSA Legal — Retrieval Drift Monitor (splabs.io)', margin, y);
+  y += 24;
+
+  // Score block
+  doc.setFont('times', 'bold');
+  doc.setFontSize(42);
+  const color = verdict === 'stable' ? [76, 175, 130] : verdict === 'weak_signal' ? [192, 164, 58] : [192, 90, 90];
+  doc.setTextColor(...color);
+  doc.text(`${reliability}/100`, margin, y);
+  y += 8;
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  const verdictLabel = { stable: 'STABLE', weak_signal: 'WEAK SIGNAL', drift: 'DRIFT DETECTED' }[verdict] ?? verdict.toUpperCase();
+  doc.text(verdictLabel, margin, y);
+  y += 24;
+
+  // Explanation
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  doc.setTextColor(50, 50, 70);
+  const lines = doc.splitTextToSize(explanation, 432);
+  doc.text(lines, margin, y);
+  y += lines.length * 14 + 20;
+
+  // Metrics table
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9);
+  doc.setTextColor(100, 100, 120);
+  doc.text('TECHNICAL METRICS', margin, y);
+  y += 12;
+
+  const metrics = [
+    ['Retrieval Drift Score (RDS)', (result.rds ?? 0).toFixed(4)],
+    ['Jaccard similarity', (result.jaccard ?? 0).toFixed(4)],
+    ['Framing pressure (FPC)', (result.framing_score ?? 0).toFixed(4)],
+    ['RDM triggered', result.rdm_triggered ? 'Yes' : 'No'],
+    ['Domain', result.domain ?? 'legal'],
+  ];
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.setTextColor(60, 60, 80);
+  metrics.forEach(([k, v]) => {
+    doc.text(`${k}:`, margin, y);
+    doc.text(v, 320, y);
+    y += 13;
+  });
+  y += 14;
+
+  // Query preview
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9);
+  doc.setTextColor(100, 100, 120);
+  doc.text('ANALYZED TEXT (EXCERPT)', margin, y);
+  y += 12;
+
+  doc.setFont('helvetica', 'italic');
+  doc.setFontSize(8.5);
+  doc.setTextColor(80, 80, 100);
+  const previewLines = doc.splitTextToSize(preview, 432);
+  doc.text(previewLines, margin, y);
+  y += previewLines.length * 12 + 20;
+
+  // Footer
+  doc.setDrawColor(184, 165, 106);
+  doc.setLineWidth(0.5);
+  doc.line(margin, y, 552, y);
+  y += 12;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(140, 140, 160);
+  doc.text(
+    'This report is generated by PSA Legal and is intended for internal due diligence purposes only. ' +
+    'It does not constitute legal advice.',
+    margin, y, { maxWidth: 432 }
+  );
+
+  const filename = `PSA_Legal_Report_${new Date().toISOString().slice(0, 10)}.pdf`;
+  doc.save(filename);
+}
+
+// ── API call ──────────────────────────────────────────────────────────────────
+
+async function analyzeText(text, apiKey) {
+  const resp = await fetch(`${API_BASE}/api/v2/rag/score`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`
+    },
+    body: JSON.stringify({
+      query: text.slice(0, 2000),
+      context: [],
+      domain: 'legal',
+      language: 'en',
+      top_k: 5,
+      check_consistency: false
+    })
+  });
+
+  if (resp.status === 401) throw new Error('Invalid API key. Please check your settings.');
+  if (resp.status === 429) throw new Error('Rate limit reached. Please wait a moment and try again.');
+  if (!resp.ok) throw new Error(`Server error (${resp.status}). Please try again.`);
+
+  return resp.json();
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+
+async function init() {
+  const { apiKey } = await chrome.storage.local.get('apiKey');
+  if (!apiKey) {
+    showView('settings');
+    return;
+  }
+
+  const { pendingText, pendingAt } = await chrome.storage.session.get(['pendingText', 'pendingAt']);
+  const isRecent = pendingAt && (Date.now() - pendingAt) < 5 * 60 * 1000; // 5 min TTL
+
+  if (pendingText && isRecent) {
+    currentText = pendingText;
+    document.getElementById('text-preview').textContent =
+      currentText.slice(0, 140) + (currentText.length > 140 ? '…' : '');
+    showView('ready');
+  } else {
+    showView('idle');
+  }
+}
+
+// ── Event listeners ───────────────────────────────────────────────────────────
+
+async function doAnalyze() {
+  const { apiKey } = await chrome.storage.local.get('apiKey');
+  if (!apiKey) { showView('settings'); return; }
+
+  showView('loading');
+  chrome.storage.session.remove(['pendingText', 'pendingAt']);
+  chrome.action.setBadgeText({ text: '' });
+
+  try {
+    const result = await analyzeText(currentText, apiKey);
+    lastResult = result;
+
+    const reliability = rdsToReliability(result.rds ?? 0);
+    const verdict     = result.verdict ?? 'unknown';
+    const color       = verdictColor(verdict);
+
+    const ring = document.getElementById('score-ring');
+    ring.className = `score-ring ${color}`;
+    document.getElementById('score-number').textContent = reliability;
+
+    const chip = document.getElementById('verdict-chip');
+    chip.className = `verdict-chip ${verdict}`;
+    chip.textContent = { stable: 'Stable', weak_signal: 'Weak signal', drift: 'Drift detected' }[verdict] ?? verdict;
+
+    document.getElementById('explanation-text').textContent = buildExplanation(result);
+    document.getElementById('result-meta').textContent =
+      `RDS ${(result.rds ?? 0).toFixed(3)} · Jaccard ${(result.jaccard ?? 0).toFixed(3)} · domain: legal`;
+
+    showView('result');
+  } catch (err) {
+    document.getElementById('error-text').textContent = err.message;
+    showView('error');
+  }
+}
+
+function showSettings() { showView('settings'); }
+
+document.addEventListener('DOMContentLoaded', () => {
+  init();
+
+  // Settings buttons (multiple views)
+  document.getElementById('btn-settings-idle').addEventListener('click', showSettings);
+  document.getElementById('btn-settings-ready').addEventListener('click', showSettings);
+  document.getElementById('btn-settings-result').addEventListener('click', showSettings);
+  document.getElementById('btn-back').addEventListener('click', init);
+
+  // Save API key
+  document.getElementById('btn-save-key').addEventListener('click', async () => {
+    const key = document.getElementById('api-key-input').value.trim();
+    if (!key) return;
+    await chrome.storage.local.set({ apiKey: key });
+    init();
+  });
+
+  // Analyze
+  document.getElementById('btn-analyze').addEventListener('click', doAnalyze);
+
+  // Dismiss pending
+  document.getElementById('btn-dismiss').addEventListener('click', () => {
+    chrome.storage.session.remove(['pendingText', 'pendingAt']);
+    chrome.action.setBadgeText({ text: '' });
+    currentText = '';
+    showView('idle');
+  });
+
+  // PDF download
+  document.getElementById('btn-pdf').addEventListener('click', () => {
+    if (lastResult) downloadPDF(currentText, lastResult);
+  });
+
+  // Analyze another
+  document.getElementById('btn-new').addEventListener('click', () => {
+    currentText = '';
+    lastResult  = null;
+    showView('idle');
+  });
+
+  // Retry on error
+  document.getElementById('btn-retry').addEventListener('click', () => {
+    if (currentText) {
+      doAnalyze();
+    } else {
+      showView('idle');
+    }
+  });
+});

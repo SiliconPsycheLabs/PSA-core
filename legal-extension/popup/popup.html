@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PSA Legal</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <!-- Settings view -->
+  <div id="view-settings" class="view hidden">
+    <div class="header">
+      <span class="logo">PSA Legal</span>
+      <button class="back-btn" id="btn-back">← Back</button>
+    </div>
+    <div class="settings-body">
+      <label class="field-label" for="api-key-input">API Key</label>
+      <input type="password" id="api-key-input" class="field-input" placeholder="psa_xxxxxxxxxxxxxxxx" autocomplete="off">
+      <button class="btn-primary" id="btn-save-key">Save</button>
+      <p class="settings-hint">Get your API key at <strong>splabs.io</strong></p>
+    </div>
+  </div>
+
+  <!-- Idle view: no pending text -->
+  <div id="view-idle" class="view hidden">
+    <div class="header">
+      <span class="logo">PSA Legal</span>
+      <button class="icon-btn" id="btn-settings-idle" title="Settings">⚙</button>
+    </div>
+    <div class="idle-body">
+      <div class="idle-icon">⚖</div>
+      <p class="idle-text">Copy any legal text to analyze its retrieval reliability.</p>
+    </div>
+  </div>
+
+  <!-- Ready view: legal text detected, not yet analyzed -->
+  <div id="view-ready" class="view hidden">
+    <div class="header">
+      <span class="logo">PSA Legal</span>
+      <button class="icon-btn" id="btn-settings-ready" title="Settings">⚙</button>
+    </div>
+    <div class="ready-body">
+      <div class="detected-badge">Legal content detected</div>
+      <p class="preview" id="text-preview"></p>
+      <button class="btn-primary" id="btn-analyze">Analyze reliability</button>
+      <button class="btn-secondary" id="btn-dismiss">Dismiss</button>
+    </div>
+  </div>
+
+  <!-- Loading view -->
+  <div id="view-loading" class="view hidden">
+    <div class="header"><span class="logo">PSA Legal</span></div>
+    <div class="loading-body">
+      <div class="spinner"></div>
+      <p class="loading-text">Analyzing retrieval…</p>
+    </div>
+  </div>
+
+  <!-- Result view -->
+  <div id="view-result" class="view hidden">
+    <div class="header">
+      <span class="logo">PSA Legal</span>
+      <button class="icon-btn" id="btn-settings-result" title="Settings">⚙</button>
+    </div>
+    <div class="result-body">
+      <div class="score-ring" id="score-ring">
+        <span class="score-number" id="score-number">—</span>
+        <span class="score-label">/ 100</span>
+      </div>
+      <div class="verdict-chip" id="verdict-chip"></div>
+      <p class="explanation" id="explanation-text"></p>
+      <div class="result-meta" id="result-meta"></div>
+      <div class="result-actions">
+        <button class="btn-primary" id="btn-pdf">Download PDF report</button>
+        <button class="btn-secondary" id="btn-new">Analyze another</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Error view -->
+  <div id="view-error" class="view hidden">
+    <div class="header"><span class="logo">PSA Legal</span></div>
+    <div class="error-body">
+      <div class="error-icon">!</div>
+      <p class="error-text" id="error-text"></p>
+      <button class="btn-secondary" id="btn-retry">Try again</button>
+    </div>
+  </div>
+
+  <script src="../lib/jspdf.umd.min.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>
