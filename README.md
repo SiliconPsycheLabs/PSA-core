@@ -301,6 +301,13 @@ Chrome MV3 extension for real-time PSA monitoring.
 
 ---
 
+## Essays
+
+Strategic and philosophical reading of PSA — each bilingual (EN/IT) and ending with a PSA
+self-analysis of its own text. See **[essays/](essays/)**. Most recent:
+[Alignment Is an Ecosystem Property](essays/alignment-as-ecosystem-property.en.md) — a reading
+of [Emergence World](https://github.com/EmergenceAI/Emergence-World) through behavioral telemetry.
+
 ## Related
 
 - **[PSA](https://github.com/SiliconPsycheLabs/PSA)** — full web application (private)
