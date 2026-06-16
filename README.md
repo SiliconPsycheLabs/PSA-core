@@ -13,8 +13,10 @@ PSA-core is the standalone engine that powers [PSA](https://github.com/SiliconPs
 | Component | Function |
 |-----------|----------|
 | **PSA v2** | 7 micro-classifiers (C0–C4, C3-v3, CA), DRM session-level risk engine, SIGTRACK v2 incident archive, CPF3 behavioral snapshot analysis |
-| **PSA v3** | Multi-agent analysis — Swiss Cheese detection (SCS), contagion metrics (PPI, CAHS, WLS, CER, AGM), action-risk classification (C5/PAI), HMM temporal prediction |
-| **Browser Extension** | Chrome MV3 — real-time PSA monitoring of AI conversations |
+| **PSA Human Layer** | Longitudinal behavioral profile of the human (Layers 1–4), built across sessions |
+| **PSA v3** | Multi-agent analysis — Swiss Cheese detection (SCS), contagion metrics (PPI, CAHS, WLS, CER, AGM), action-risk classification (C5/PAI), HMM temporal prediction, swarm coordination, corpus-wide intelligence |
+| **PSA-RAG (RDM)** | Retrieval Drift Monitor — detects context-biased RAG retrieval (FPC + RDS) for legal, health, finance |
+| **Browser Extension** | Chrome MV3 — real-time PSA monitoring + PSA Legal extension (RDM-powered) |
 
 ---
 
@@ -153,6 +155,12 @@ Privacy-compliant incident archive. Stores posture sequences, not raw text.
 
 **GDPR erasure:** Single-row `DELETE` — no cascade, no raw text.
 
+**Verifiable certificate export:** any incident can be exported as a self-contained JSON
+certificate, anchored to the [drand](https://drand.love/) public randomness beacon and chained
+via SHA-256. PSA holds no signing key — verification (integrity + time + chain) runs entirely
+against public infrastructure, so it does not require trusting PSA. See
+[API.md → Certificate Export](API.md#sigtrack-certificate-export).
+
 ---
 
 ## PSA v3 — Multi-Agent Metrics
@@ -203,6 +211,49 @@ Classifies tool calls and code execution. Used to compute PAI.
 | Contagion Metrics | `psa_v3/metrics.py` + `metrics_composite.py` | Cross-agent posture propagation |
 | Action Classifier | `psa_v3/actions.py` | C5 action-risk + PAI |
 | HMM Prediction | `psa_v3/temporal_hmm.py` | Future posture prediction |
+
+**Additional v3 surfaces** (see [API.md](API.md#psa-v3--agentic-architecture)): agent
+state & baseline (forward-algorithm HMM over the full agent history), causal **attribution**
+(Shapley-inspired SCS contribution per critical-path node), deterministic **supervisor brief**
+(plain-language reading, no LLM), **swarm coordination** (status + broadcast), and a
+corpus-wide **corpus-intelligence** endpoint (framework-agnostic aggregate analytics).
+
+---
+
+## PSA Human Layer
+
+Longitudinal behavioral profile of the **human** in the conversation, accumulated across
+sessions. Five layers; the API returns Layers 1–4 (Layer 5 is stored, never returned):
+
+| Layer | Focus |
+|-------|-------|
+| 1 | Input risk over time (IRS avg/max/trend) |
+| 2 | Relational dynamics (validation-seeking, agency erosion, trust over/under, dependency) |
+| 3 | Cognitive state (rigidity, reality anchoring, distortion, semantic compression) |
+| 4 | Social adaptation (legibility, reciprocity expectation, social substitution) |
+
+Endpoints: `GET /api/v2/psa/user/profile`, `GET /api/v2/psa/user/sessions`,
+`POST /api/v2/psa/user/profile/consent` (grant/revoke professional access).
+
+---
+
+## PSA-RAG — Retrieval Drift Monitor
+
+Detects when **conversational context biases a RAG pipeline** into retrieving documents it
+would not retrieve on a clean query — the silent attack surface of retrieval-augmented LLMs.
+Scoped to three commercial domains: **legal**, **health**, **finance**. Powers the PSA Legal
+Chrome extension.
+
+| Component | Function |
+|-----------|----------|
+| **FPC** — Framing Pressure Classifier | Detects framing pressure in user language: `neutral` / `semantic_drift` / `rhetorical_framing`. val_acc 95.7%, multilingual (en/it/fr/de/es) |
+| **RDS** — Retrieval Drift Score | Measures actual retrieval divergence: `1 − Jaccard(context_docs, topic_docs)`; `rds_rank = 1 − RBO` catches reorder-only steering |
+| **Consistency Score** | Retrieval stability across query paraphrases |
+| **attack_class** | Compound taxonomy: `clean` · `framing_only` · `topical_drift` · `rank_steering` · `vocab_injection` · `compound` |
+
+**Verdicts:** `drift` (RDS ≥ 0.70) · `weak_signal` (≥ 0.35) · `stable` (< 0.35).
+Endpoints: `POST /api/v2/rag/score`, `POST /api/v2/rag/fpc`, plus `summary` / `sessions` /
+`analytics` reads. See [API.md → PSA-RAG](API.md#psa-rag--retrieval-drift-monitor).
 
 ---
 

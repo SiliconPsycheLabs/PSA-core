@@ -11,11 +11,21 @@ Full REST API specification for PSA-core.
 ## Table of Contents
 
 - [Authentication](#authentication)
+- [Public Landing Tool — unauthenticated](#public-landing-tool--unauthenticated)
 - [PSA v2 — Posture Analysis + DRM](#psa-v2--posture-analysis--drm)
+- [PSA Human Layer](#psa-human-layer)
 - [SIGTRACK v2 — Incident Archive](#sigtrack-v2--incident-archive)
   - [Action Log](#sigtrack-action-log)
   - [Forensic Ledger](#sigtrack-forensic-ledger)
+  - [Certificate Export](#sigtrack-certificate-export)
 - [PSA v3 — Agentic Architecture](#psa-v3--agentic-architecture)
+  - [CPF3 Bridge](#psa-v3--cpf3-bridge)
+  - [CPF3 Forecast](#psa-v3--cpf3-forecast-hmm-extension)
+  - [Swarm Coordination](#psa-v3--swarm-coordination)
+  - [Stats & Attribution](#psa-v3--stats--attribution)
+  - [Agent State & Baseline](#psa-v3--agent-state--baseline)
+- [CPF — Decay & Org Resilience](#cpf--decay--org-resilience)
+- [PSA-RAG — Retrieval Drift Monitor](#psa-rag--retrieval-drift-monitor)
 - [Knowledge Base API](#knowledge-base-api--api-v2-knowledge)
 - [Public API v1 — Sessions](#public-api-v1--sessions)
 - [Rate Limits](#rate-limits)
@@ -32,6 +42,63 @@ Authorization: Bearer psa_your_api_key_here
 ```
 
 Generate keys from [/settings](https://splabs.io/settings). Keys are prefixed `psa_` and can be rotated independently.
+
+### DELETE /api/auth/account
+
+Self-service account deletion. Soft-deletes the authenticated user and all their sessions, clears Stripe references, archives metadata, and invalidates the session cookie.
+
+- **Auth:** cookie `psa_token` (required)
+- **Guard:** the sole admin cannot delete their own account → `403 Forbidden`
+- **Effects:** `is_deleted=true`, subscription cancelled, all sessions soft-deleted, metadata archived (90-day purge window), `psa_token` cookie invalidated.
+- **Physical purge:** soft-deleted rows are hard-deleted after 90 days by the weekly retention loop.
+
+```json
+DELETE /api/auth/account
+Cookie: psa_token=<jwt>
+→ 200  {"ok": true}
+→ 401  not authenticated / invalid token
+→ 403  sole admin account
+```
+
+---
+
+## Public Landing Tool — unauthenticated
+
+Free, no-auth endpoints powering the "paste a conversation → instant PSA report" widget.
+Stateless (dry-run only — nothing is persisted), per-IP rate limited, hard size caps.
+Counts are real (no inflation).
+
+### POST /api/v2/psa/public-analyze
+
+Run PSA classifiers + DRM on pasted text without authentication.
+
+- **Rate limit:** 30/minute per IP + DB-backed daily caps (global 10,000/day, per-IP 10/day) → `429` when exceeded.
+- **Caps:** max 12 turns, max 8,000 characters total → `413` if exceeded.
+- **Body:** either `turns` (multi-turn) or `text` (single response).
+
+```json
+{ "turns": [ {"user": "How do I do X?", "model": "I can help with that."} ],
+  "clf_context": "clinical" }
+```
+
+Response: per-turn results (BHS, C1 postures/sentences, C2 SD, IRS + sub-signals, RAS/RAG/DRM, alert)
+plus `tokens` — the real MiniLM subword-token count processed (not a billing figure).
+
+```json
+{ "turns": [ {"turn": 1, "user_text": "…", "model_text": "…",
+              "result": { "bhs": 0.82, "alert": "green", "c1": {…}, "irs": {…}, "drm": {…} }} ],
+  "n_turns": 1, "tokens": 14, "dry_run": true, "daily_allowance": 10000 }
+```
+
+### GET /api/v2/psa/public-stats
+
+Honest landing stats: live cumulative usage (O(1) single-row read, maintained at write time)
+plus traffic-independent capability figures. No inflation.
+
+```json
+{ "analyses_run": 203114, "today": 42, "daily_allowance": 10000, "remaining_today": 9958,
+  "classifiers": 13, "metrics": 37, "behavioral_classes": 116, "languages": 5, "cpf_indicators": 100 }
+```
 
 ---
 
@@ -246,6 +313,39 @@ Run the Dyadic Risk Module from pre-computed IRS, RAS, and PSA context.
 
 ---
 
+## PSA Human Layer
+
+Longitudinal behavioral profile of the **human** in the conversation (the H-layer), built
+across sessions. Layers 1–4 are returned; Layer 5 is stored but never returned by the API.
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| GET  | `/api/v2/psa/user/profile` | Cookie / API key | Caller's own behavioral profile (Layers 1–4). Admins may pass `?target_user_id=<uuid>`. |
+| GET  | `/api/v2/psa/user/sessions` | Cookie / API key | Paginated sessions with H* per-session scores. Params: `page`, `per_page`. |
+| POST | `/api/v2/psa/user/profile/consent` | Cookie / API key | Grant or revoke professional access to the profile |
+
+### GET /api/v2/psa/user/profile
+
+```json
+{
+  "layer1": { "irs_avg": 0.12, "irs_max": 0.45, "irs_trend": "stable", "sessions_tracked": 0, "history": [] },
+  "layer2": { "validation_seeking": 0.0, "agency_erosion": 0.0, "trust_over": 0.0, "trust_under": 0.0, "dependency": 0.0 },
+  "layer3": { "cognitive_rigidity": 0.0, "reality_anchoring": 0.0, "distortion": 0.0, "semantic_compression": 0.0 },
+  "layer4": { "legibility_adaptation": 0.0, "reciprocity_expect": 0.0, "social_substitution": 0.0 },
+  "meta": { "total_turns": 0, "total_sessions": 0, "professional_access": false, "consent_granted_at": null }
+}
+```
+
+### POST /api/v2/psa/user/profile/consent
+
+```json
+{ "professional_id": "<uuid>", "action": "grant" }
+```
+
+`action` must be `"grant"` or `"revoke"`. Returns `{"ok": true, "action": "grant", "professional_id": "..."}`.
+
+---
+
 ## SIGTRACK v2 — Incident Archive
 
 Privacy-compliant incident archive. Stores posture sequences only — no raw text. GDPR-safe single-row deletion.
@@ -342,6 +442,51 @@ curl https://api.drand.sh/52db9ba70e0cc0f6eaf7803dd07447a1f5477735fd3f661792ba94
 ```
 
 > **Pre-ledger records** (archived before 2026-05-21) have `record_hash=null` and return `reason: not_anchored`. They are not counted as chain violations.
+
+---
+
+### SIGTRACK Certificate Export
+
+Export an incident as a **self-contained, verifiable certificate** — a single JSON carrying
+the full hashed payload, the ledger anchor (hash chain + drand beacon) and an embedded
+`verification` block. PSA holds **no signing key**, so this is *not* a certificate authority:
+verification runs entirely against public infrastructure and does not require trusting PSA.
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| GET  | `/api/v2/sigtrack/incidents/{incident_id}/export` | Admin | Export any incident as a verifiable certificate |
+| GET  | `/api/v2/sigtrack/my-incidents/{incident_id}/export` | API key | Export one of the caller's own incidents |
+
+**Verification — three independent checks, all against public infrastructure:**
+
+1. **Integrity** — recompute `sha256( (prev_hash or 'GENESIS') + '|' + canonical_json(payload) + '|' + beacon_value )` and compare to `ledger.record_hash`.
+2. **Time** — fetch `ledger.beacon_round` from the drand chain and confirm its `randomness` equals `ledger.beacon_value`.
+3. **Chain** — `ledger.prev_hash` equals the `record_hash` of the preceding incident.
+
+`canonical_json` = JSON with sorted keys, no whitespace, `ensure_ascii=true`, all floats
+rounded to 6 decimals (`payload_schema: 2` covers the full record — posture sequence and DRM
+summary).
+
+**Reference verifier** (Python, public-infrastructure only):
+
+```python
+import json, hashlib, urllib.request
+
+def canonical_json(p):
+    return json.dumps(p, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+
+def verify(cert):
+    p, L = cert["payload"], cert["ledger"]
+    msg = "|".join([L["prev_hash"] or "GENESIS", canonical_json(p), L["beacon_value"] or ""])
+    if hashlib.sha256(msg.encode()).hexdigest() != L["record_hash"]:
+        return False, "integrity"
+    chain = "52db9ba70e0cc0f6eaf7803dd07447a1f5477735fd3f661792ba94600c84e971"
+    url = f"https://api.drand.sh/{chain}/public/{L['beacon_round']}"
+    rnd = json.load(urllib.request.urlopen(url))["randomness"]
+    if rnd != L["beacon_value"]:
+        return False, "time"
+    return True, "ok"
+```
 
 ---
 
@@ -498,6 +643,283 @@ Current early warning status and recommendation.
 ```json
 { "warning_level": "yellow", "current_state": "STRESSED", "turns_to_red": 4, "recommendation": "..." }
 ```
+
+---
+
+### PSA v3 — CPF3 Bridge
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| POST | `/api/v3/psa/graph/{graph_id}/cpf-snapshot` | Bearer token | Convert a PSAv3 graph into a CPF3 analysis for the root agent |
+
+Reads `scs`, `cahs`, `ppi` from a stored graph and runs the CPF3 detector on the root
+orchestrator (`subject_type = "ai_agent"`), activating CPF Category 9 indicators:
+`9.7` coherence loss (SCS) · `9.8` escalation pattern (CAHS) · `9.9` prediction instability (PPI).
+Persists to `cpf_analyses` so the agent appears in the CPF org-summary.
+
+```json
+{
+  "graph_id": "uuid", "agent_id": "claude-code-main",
+  "cpf_score": 32, "alert_level": "RED",
+  "active_indicators": { "9.7": 2, "9.8": 1, "9.9": 2 },
+  "psav3_inputs": { "scs": 0.18, "cahs": 0.72, "ppi": 0.31 },
+  "analysis_id": "uuid"
+}
+```
+
+---
+
+### PSA v3 — CPF3 Forecast (HMM extension)
+
+#### GET /api/v3/psa/forecast/cpf/{subject_hash}
+
+EWMA forecast for CPF3 composite + category scores, plus an `hmm` field with HMM state
+inference over the CPF score series (shared PSAv3 temporal model).
+
+**Query params:** `horizon` (1–10, default 3), `alpha` (0.05–0.95, default 0.3)
+
+```json
+{
+  "subject_hash": "claude-code-main", "n_analyses": 5,
+  "hmm": {
+    "current_state": "STRESSED", "current_confidence": 0.6231,
+    "predictions": [ {"STABLE": 0.12, "STRESSED": 0.48, "DISSOLVING": 0.28, "DISSOLVED": 0.10, "RECOVERED": 0.02} ],
+    "p_dissolved_within_k": 0.18, "turns_to_red": 3,
+    "warning_level": "yellow", "recommendation": "Monitor — increased pressure detected"
+  }
+}
+```
+
+CPF score → HMM emission: 0–14 → STABLE · 15–29 → STRESSED · 30–49 → DISSOLVING · 50+ → DISSOLVED.
+`hmm` is `null` when fewer than 3 CPF analyses exist for the subject.
+
+---
+
+### PSA v3 — Swarm Coordination
+
+Multi-agent coordination endpoints. **Auth: Bearer token (admin).**
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET    | `/api/v3/psa/coordination/swarm/status` | Status of all active agents, last trace, latest broadcast |
+| POST   | `/api/v3/psa/coordination/swarm/broadcast` | Post a broadcast (assignment or emergency stop) |
+| DELETE | `/api/v3/psa/coordination/swarm/broadcast` | Rescind an active `[STOP_ALL]` (records `[RESUME_ALL]`) |
+| GET    | `/api/v3/psa/coordination/swarm/broadcasts` | Paginated broadcast history (`page`, `per_page`) |
+
+**GET /swarm/status:**
+
+```json
+{
+  "agents": [
+    { "agent_id": "claude-code-main", "status": "working",
+      "last_seen": "2026-05-26T20:00:00Z", "current_task": "[TASK: ...]", "bhs": 0.82 }
+  ],
+  "broadcast": { "message": "ASSIGNMENT: agent-X → issue #1621", "stop_all": false, "created_at": "..." },
+  "agent_count": 1
+}
+```
+
+- `status` — `online` · `working` · `done` · `stopped` · `idle` · `unknown`
+- `broadcast` — most recent broadcast, or `null` if none in the last 6 hours
+
+**POST /swarm/broadcast** body: `{ "message": "ASSIGNMENT: ...", "stop_all": false }`
+(`stop_all: true` → all agents reading `/swarm/status` must halt). Returns
+`{"status": "broadcast_sent", "graph_id": "uuid"}`.
+
+---
+
+### PSA v3 — Stats & Attribution
+
+#### GET /api/v3/psa/stats/timeline
+
+Daily graph-submission counts by alert level (volume chart). Query param: `days` (1–90, default 14).
+
+```json
+{ "days": 14, "data": [ { "date": "2026-06-01", "total": 8, "n_green": 5, "n_yellow": 2, "n_red": 1, "n_critical": 0 } ] }
+```
+
+#### GET /api/v3/psa/internal/corpus-intelligence
+
+**Admin only.** Corpus-wide, framework-agnostic intelligence over the entire PSAv3 graph
+corpus (all users, all frameworks). Single-pass aggregate analytics — corpus structure,
+alert/risk distributions, swarm cross-agent metrics, action-risk distribution, agent health,
+and an empirical **signal test** comparing escalated (`red`/`critical`) vs calm multi-agent graphs.
+
+```json
+{
+  "overview": { "total": 0, "real": 0, "demo": 0, "users": 0, "single_node": 0, "multi_agent": 0 },
+  "n_agents_distribution": { "1": 0, "2": 0, "3-5": 0, "6+": 0 },
+  "alerts": [ { "level": "green", "total": 0, "multi_agent": 0 } ],
+  "risk": { "scs_avg": 0.0, "scs_p95": 0.0, "scs_max": 0.0, "cahs_avg": 0.0 },
+  "swarm_metrics": { "n": 0, "ppi_avg": 0.0, "cascade_avg": 0.0, "wls_avg": 0.0, "cer_avg": 0.0 },
+  "agents": { "count": 0, "avg_bhs": 0.0, "worst_bhs": 0.0 },
+  "signal_test": {
+    "calm":      { "n": 0, "cascade": 0.0, "ppi": 0.0, "cahs": 0.0 },
+    "escalated": { "n": 0, "cascade": 0.0, "ppi": 0.0, "cahs": 0.0 },
+    "cascade_lift": 0.0, "ppi_lift": 0.0, "cahs_drop": 0.0
+  }
+}
+```
+
+#### GET /api/v3/psa/graph/{graph_id}/attribution
+
+Causal attribution — which critical-path node is most responsible for SCS elevation. Uses a
+Shapley-inspired marginal contribution: `SCS(full path) − SCS(path without node)` per node.
+
+```json
+{ "graph_id": "uuid", "scs": 0.72,
+  "attributions": [ { "node_id": "uuid", "agent_id": "claude-code-main", "contribution": 0.41 } ] }
+```
+
+#### GET /api/v3/psa/graph/{graph_id}/supervisor-brief
+
+Plain-language supervisor brief — a deterministic, human-readable reading of the graph
+(headline / body / attention) composed server-side from already-computed metrics. **No LLM
+involved:** same input, same text. It describes behavior and triages attention; it never
+asserts causes. Also included as the additive `supervisor_brief` field on `GET .../graph/{id}`.
+
+```json
+{
+  "graph_id": "uuid",
+  "supervisor_brief": {
+    "headline": "claude-code-exec is the weak point of this chain — attention needed.",
+    "body": "The work is currently losing coherence (confidence 81%). The most fragile point is claude-code-exec ... the chance of this collaboration breaking down within the next 3 turns is high (62%).",
+    "attention": "Review claude-code-exec now, and watch the next 2–3 turns before relying on this chain's output.",
+    "severity": "attention",
+    "key_signals": [ { "signal": "SCS", "value": 0.86, "level": "red", "meaning": "Swiss Cheese Score — probability of systemic failure on the critical path." } ]
+  }
+}
+```
+
+`severity` ∈ `ok` | `watch` | `attention`.
+
+---
+
+### PSA v3 — Agent State & Baseline
+
+#### GET /api/v3/psa/agent/{agent_id}/state
+
+Estimate the agent's current HMM state using its full observation history (forward algorithm).
+Query param: `horizon` (default 3).
+
+```json
+{ "agent_id": "claude-code-main", "current_state": "STABLE", "current_confidence": 0.81,
+  "warning_level": "green", "p_dissolved_within_k": 0.06, "turns_to_red": null,
+  "predictions": [{ "STABLE": 0.72, "STRESSED": 0.18, "DISSOLVING": 0.06, "DISSOLVED": 0.02, "RECOVERED": 0.02 }],
+  "hmm_version": 2, "cached": true }
+```
+
+#### GET /api/v3/psa/agent/{agent_id}/baseline
+
+Behavioral baseline: mean ± std of BHS, CAHS, SCS, POI over the last 50 graphs including this
+agent. Requires ≥ 5 graphs; returns `{"error": "insufficient_history"}` below threshold.
+
+```json
+{ "agent_id": "claude-code-main", "n_graphs": 34,
+  "bhs": { "mean": 0.82, "std": 0.07 }, "cahs": { "mean": 0.74, "std": 0.11 },
+  "scs": { "mean": 0.21, "std": 0.09 }, "poi": { "mean": 0.33, "std": 0.14 } }
+```
+
+---
+
+## CPF — Decay & Org Resilience
+
+Cognitive Pressure Framework (CPF3) decay analytics: how subject and organization-wide
+pressure profiles evolve over time across the 10 CPF categories.
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| GET | `/api/v2/cpf/l2-status` | None | Diagnostic — L2 severity-classifier availability & backend |
+| GET | `/api/v2/cpf/subject/{user_hash}/indicator-baseline` | Bearer token | Per-indicator baseline scores for a subject |
+| GET | `/api/v2/cpf/subject/{user_hash}/decay` | Bearer token | Per-subject decay matrix (10 categories × N buckets) |
+| GET | `/api/v2/cpf/org-decay` | Bearer token | Org-wide % worsening / stable / improving per category |
+| GET | `/api/v2/cpf/org-decay-matrix` | Bearer token | Org-wide temporal decay matrix (10 categories × N periods) |
+
+**GET /api/v2/cpf/subject/{user_hash}/decay** — query params `days` (1–90, default 30),
+`n_buckets` (3–20, default 10):
+
+```json
+{ "user_hash": "abc123", "period_days": 30, "n_buckets": 10, "n_snapshots": 14,
+  "categories": { "1": [{ "ts": "2026-05-01", "avg": 8.2 }] } }
+```
+
+**GET /api/v2/cpf/org-decay** — per category, the share of subjects trending each way:
+
+```json
+{ "period_days": 30, "n_subjects": 8,
+  "categories": { "1": { "pct_worsening": 25.0, "pct_stable": 62.5, "pct_improving": 12.5,
+                          "avg_slope": 0.021, "direction": "stable", "n_subjects": 8 } } }
+```
+
+---
+
+## PSA-RAG — Retrieval Drift Monitor
+
+The **Retrieval Drift Monitor (RDM)** detects when conversational context biases a RAG
+pipeline into retrieving documents it would not retrieve on a clean query. Core components:
+**FPC** (Framing Pressure Classifier — `neutral` / `semantic_drift` / `rhetorical_framing`),
+**RDS** (Retrieval Drift Score — actual retrieval divergence), and a **Consistency Score**
+(retrieval stability across paraphrases). Scoped to three commercial domains: **legal**,
+**health**, **finance**. This is the layer the PSA Legal Chrome extension consumes.
+
+> **FPC model (2026-06-08):** val_acc 95.7%, semantic_drift recall 95.3%, rhetorical_framing
+> recall 100%. Multilingual: en, it, fr, de, es.
+
+### POST /api/v2/rag/score
+
+Compute the Retrieval Drift Score for a query given its conversational context.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `query` | string | required | The retrieval query to score |
+| `context` | list[string] | `[]` | Previous conversation turns (plain text) |
+| `domain` | string | `"legal"` | `legal` · `health` · `finance` |
+| `top_k` | int | `5` | Documents retrieved per path |
+| `check_consistency` | bool | `false` | Compute retrieval stability across paraphrases → `consistency_score` |
+| `discover_stable` | bool | `false` | Find the lowest-RDS paraphrase → `stable_query` |
+| `save_text` | bool | `false` | Privacy: when `false`, only a SHA-256 digest of the query is persisted (scores/verdicts always persisted) |
+| `enable_clean_twin` | bool | `false` | W4c clean-twin monitor → `clean_shift` (one extra retrieval call) |
+
+**Response (key fields):**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `rds` | float | Retrieval Drift Score (0–1). `1 − Jaccard(context_docs, topic_docs)` |
+| `rds_rank` | float | Rank-aware drift `1 − RBO` — catches reorder-only steering |
+| `verdict` | string | `drift` (RDS ≥ 0.70) · `weak_signal` (≥ 0.35) · `stable` (< 0.35) |
+| `framing_score` | float | `P(semantic_drift) + P(rhetorical_framing)` from FPC (0–1) |
+| `pressure_class` | string | Top FPC class: `neutral` · `semantic_drift` · `rhetorical_framing` |
+| `rdm_triggered` | bool | `true` when `framing_score ≥ 0.50` |
+| `attack_class` | string | `clean` · `framing_only` · `topical_drift` · `rank_steering` · `vocab_injection` · `compound` |
+| `context_docs` / `topic_docs` | list | Documents retrieved with context-augmented vs topic-only query |
+
+### POST /api/v2/rag/fpc
+
+Standalone Framing Pressure Classifier — scores a single query/turn for framing pressure
+without computing RDS (no corpus lookup). Use as a lightweight pre-filter.
+
+```
+POST /api/v2/rag/fpc?query=<url-encoded text>
+```
+
+```json
+{ "framing_score": 0.91, "pressure_class": "rhetorical_framing", "rdm_triggered": true, "framing_direction": null }
+```
+
+### GET /api/v2/rag/summary
+
+Benchmark correlation summary: per-domain RDS statistics and FPC precursor validation
+(`avg_rds`, `drift_rate`, `spearman_rho`, `precursor_precision/recall/f1`).
+
+### GET /api/v2/rag/sessions
+
+Paginated list of RDM scoring sessions. Query params: `page`, `per_page`, `domain`,
+`verdict` (`drift`/`weak_signal`/`stable`), `rdm_triggered` (`true`/`false`).
+
+### GET /api/v2/rag/analytics
+
+Aggregate statistics over all RDM sessions (drift rate by domain, FPC trigger rate, average
+RDS, pressure distribution). Pre-computed — O(1) DB read. Query param: `days` (1–365, default 30).
 
 ---
 

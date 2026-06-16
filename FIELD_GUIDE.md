@@ -13,6 +13,7 @@ Interpretation reference for PSA metrics, alert levels, and behavioral postures.
 2. [PSA v2 Metrics](#2-psa-v2-metrics)
 3. [Reading a Session](#3-reading-a-session)
 4. [PSA v3 — Agentic Architecture](#4-psa-v3--agentic-architecture)
+5. [PSA-RAG — Retrieval Drift Monitor](#5-psa-rag--retrieval-drift-monitor)
 
 ---
 
@@ -347,6 +348,49 @@ The temporal prediction engine uses a Hidden Markov Model with four states:
 | `DISSOLVED` | < 0.30 | Behavioral breakdown |
 
 `turns_to_red` in the prediction response estimates how many turns before the system reaches `DEGRADED` or `DISSOLVED` at current trajectory.
+
+---
+
+## 5. PSA-RAG — Retrieval Drift Monitor
+
+The RDM scores whether **conversational context steered a RAG retrieval** away from what a
+clean query would have surfaced. Read it as a pair of signals — pressure in the *language*
+(FPC) and divergence in the *retrieval* (RDS) — plus a compound attack label.
+
+### FPC — Framing Pressure Classifier
+
+Scores the user's language for framing pressure. Independent of retrieval — it can fire
+before any documents are fetched.
+
+| Class | Meaning |
+|-------|---------|
+| `neutral` | Direct factual question, no directional bias |
+| `semantic_drift` | Syntactically neutral but semantically pushed toward one conclusion (drift carried in topic selection / presupposed framing) |
+| `rhetorical_framing` | Explicit markers: authority claims, presuppositions, forced premises |
+
+`framing_score = P(semantic_drift) + P(rhetorical_framing)`. `rdm_triggered = true` when `framing_score ≥ 0.50`.
+
+### RDS — Retrieval Drift Score
+
+| Field | Meaning |
+|-------|---------|
+| `rds` | `1 − Jaccard(context_docs, topic_docs)` — set-level divergence between context-augmented and topic-only retrieval |
+| `rds_rank` | `1 − RBO` — rank-aware drift; catches reorder-only steering that set-level RDS scores as 0 |
+
+| Verdict | RDS | Reading |
+|---------|-----|---------|
+| `stable` | < 0.35 | Context did not change what was retrieved |
+| `weak_signal` | 0.35–0.69 | Partial divergence — watch |
+| `drift` | ≥ 0.70 | Retrieval substantially steered by context |
+
+### attack_class — compound taxonomy
+
+Combines FPC, RDS and `rds_rank` into one label: `clean` · `framing_only` (pressure, no
+retrieval effect) · `topical_drift` · `rank_steering` (reorder only) · `vocab_injection`
+(opposing-vocabulary steering) · `compound` (multiple signals active). When non-clean,
+`attack_signals` lists the active contributors.
+
+Scoped to **legal**, **health**, **finance**. FPC is multilingual (en/it/fr/de/es).
 
 ---
 
