@@ -21,6 +21,7 @@ anthropic = ["anthropic>=0.20"]
 mcp = ["mcp>=1.0"]
 fastapi = ["fastapi>=0.100"]
 langfuse = ["langfuse>=4.0"]
+elevenlabs = ["websockets>=12.0"]
 all = [
     "langchain-core>=0.2",
     "crewai>=0.1",
@@ -29,6 +30,7 @@ all = [
     "mcp>=1.0",
     "fastapi>=0.100",
     "langfuse>=4.0",
+    "websockets>=12.0",
 ]
 
 [project.urls]

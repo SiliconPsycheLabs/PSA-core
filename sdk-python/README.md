@@ -133,6 +133,72 @@ Available MCP tools exposed:
 | `query_graphs` | Query past traces by alert level |
 | `get_agent_profile` | Get longitudinal behavioral profile for an agent |
 
+### ElevenLabs (voice agents)
+
+Monitor ElevenLabs Conversational AI agents with PSA behavioral analysis. The
+adapter runs entirely in your process — your code holds the ElevenLabs API key
+and receives webhooks directly; PSA stores nothing.
+
+```bash
+pip install "psa-sdk[elevenlabs]"
+```
+
+**Post-call scoring** (recommended path):
+
+```python
+from psa.adapters.elevenlabs import PSAVoiceObserver
+
+observer = PSAVoiceObserver(session_name="support-bot-prod")
+
+# Called inside your ElevenLabs post-call webhook handler
+result = observer.score_call(
+    transcript_turns=webhook_payload["data"]["transcript"],
+    conversation_id=webhook_payload["data"]["conversation_id"],
+)
+print(result["aggregate"]["alert"])   # → "green" / "yellow" / "red"
+print(result["aggregate"]["avg_bhs"]) # → 0.0–1.0
+```
+
+**Verify HMAC** before trusting the webhook payload:
+
+```python
+valid = observer.verify_webhook(
+    signature_header=request.headers["ElevenLabs-Signature"],
+    raw_body=request.body,
+)
+```
+
+**Built-in webhook server** for quick local testing:
+
+```bash
+ELEVENLABS_WEBHOOK_SECRET=your-hmac-secret \
+PSA_API_KEY=your-key \
+    python -m psa.adapters.elevenlabs serve --port 8080
+```
+
+Point your ElevenLabs workspace "Post-call webhook URL" at this server.
+
+**Realtime monitoring** with optional auto-control:
+
+```python
+def on_turn(turn_idx: int, psa_result: dict) -> None:
+    print(f"Turn {turn_idx}: alert={psa_result['alert']}")
+
+observer.monitor(
+    conversation_id="el_conv_xyz",
+    mode="auto_control",                      # fires control on red alert
+    auto_control_action="enable_human_takeover",
+    on_turn=on_turn,
+    xi_api_key=os.environ["ELEVENLABS_API_KEY"],
+)
+```
+
+| Env var | Required | Description |
+|---------|----------|-------------|
+| `PSA_API_KEY` | Yes | Your PSA API key |
+| `ELEVENLABS_API_KEY` or `XI_API_KEY` | Realtime only | ElevenLabs API key (Agents Write scope) |
+| `ELEVENLABS_WEBHOOK_SECRET` | Recommended | HMAC secret from ElevenLabs workspace |
+
 ### A2A (Agent-to-Agent — Google protocol)
 
 Expose a PSA-monitored agent as an A2A-discoverable endpoint:
