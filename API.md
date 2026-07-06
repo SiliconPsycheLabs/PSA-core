@@ -206,17 +206,34 @@ Paginated list of sessions with PSA enrichment.
 | `q` | session name search filter |
 | `min_alert` | `green` \| `yellow` \| `orange` \| `red` \| `critical` |
 | `sort_by` | `alert` (most severe first) or omit for newest-first |
+| `group_token` | scope the list to one linked thread (cross-session linking), ordered by `group_pos` |
 
-**Response:**
+**Response:** each session also carries `group_token` and `group_pos` (both `null` when unlinked).
 
 ```json
 {
   "sessions": [
-    { "id": "...", "name": "...", "alert": "red", "bhs": 0.41, "turns": 12, "created_at": "2026-04-13T10:22:00Z" }
+    { "id": "...", "name": "...", "alert": "red", "bhs": 0.41, "turns": 12,
+      "group_token": null, "group_pos": null, "created_at": "2026-04-13T10:22:00Z" }
   ],
   "total": 287, "page": 1, "per_page": 50, "total_pages": 6
 }
 ```
+
+---
+
+### Cross-session linking — `group_token`
+
+Some risk is invisible in a single session and only shows up across several — a slow drift where each session looks fine but the behaviour steadily slides. An `/api/v2/psa/analyze` call may carry an **opaque `group_token`** (string, ≤64 chars) that ties the conversation into a **thread**. The token's meaning (same user / agent / case) is the caller's — PSA never interprets it.
+
+- When present, the session joins that thread and is assigned an auto-incremented `group_pos` (its position = order of analysis).
+- **Forensic order** stays the immutable analysis timestamp; `group_pos` is the editable curated position — editing it never touches the timestamp.
+- `GET /api/v2/psa/sessions?group_token=…` returns the thread in `group_pos` order; the dashboard shows a link chip on linked sessions to open the thread view.
+- Metadata grouping only — no classifier score is affected.
+
+### Agglutinated input
+
+Input written with **no spaces** (`vogliofarlafinita`) is re-segmented into words before analysis, in all 5 languages, so both the encoder and the lexical risk scorers see the real words. It fires only on genuinely run-together text, is a no-op on ordinary writing, and never lowers a risk score. No API surface — it runs inside the pipeline.
 
 ---
 
