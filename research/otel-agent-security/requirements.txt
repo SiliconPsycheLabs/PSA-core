@@ -1,0 +1,7 @@
+# Dependencies for the OTel agent-telemetry security tests (issue ).
+# Pinned to the versions the 25 Jul 2026 results were measured on.
+opentelemetry-sdk>=1.44.0
+opentelemetry-exporter-otlp-proto-http>=1.44.0
+pytest>=8.0
+# Only for the tests marked `llm`; the deterministic tests do not import it.
+openai>=1.0
