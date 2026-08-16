@@ -36,11 +36,16 @@ _ASSISTANT = "assistant/message"
 _USER = "user/message"
 _TOOL_CALL = "tool/call"
 
+# The PSA agent_role vocabulary the /graph endpoint accepts; anything else is coerced (a dsh
+# agentPreset is a free-form composition name, so an unmapped role must not be passed raw).
+_VALID_ROLES = {"orchestrator", "executor", "planner", "researcher", "coder", "reviewer",
+                "critic", "validator", "memory", "tool"}
+
 _ROLE_MAP = {
     "orchestrator": "orchestrator", "planner": "planner", "researcher": "researcher",
     "coder": "coder", "reviewer": "reviewer", "critic": "critic", "validator": "validator",
     "executor": "executor", "memory": "memory", "tool": "tool", "writer": "executor",
-    "intake": "orchestrator", "relay1": "executor", "relay2": "executor",
+    "intake": "orchestrator", "relay1": "executor", "relay2": "executor", "user": "orchestrator",
 }
 
 
@@ -125,9 +130,11 @@ def sessions_to_nodes(sessions: list[dict], agent_id_prefix: str = "dsh") -> lis
 
     nodes: list[dict] = []
     for i, s in enumerate(sessions):
+        role = s["role"] if s["role"] in _VALID_ROLES else (
+            "orchestrator" if s["depth"] == 0 else "executor")
         node: dict[str, Any] = {
-            "agent_id": f"{agent_id_prefix}-{s['role'] or 'agent'}-{str(s['id'])[:8]}",
-            "agent_role": s["role"] or ("orchestrator" if s["depth"] == 0 else "executor"),
+            "agent_id": f"{agent_id_prefix}-{role}-{str(s['id'])[:8]}",
+            "agent_role": role,
             "content": s["content"],
         }
         parent_i = index_of.get(s["parent"])
