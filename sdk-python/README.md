@@ -103,7 +103,24 @@ tracer.flush()  # submit trace
 
 ### MCP (Model Context Protocol)
 
-Run PSA as a standalone MCP server so Claude Desktop, Cursor, Cline, or any MCP-compatible client can score a turn (`psa_analyze`) and submit traces natively without writing any code.
+PSA speaks MCP so Claude Desktop, Cursor, Cline, or any MCP-compatible client can score a turn natively without writing any code. There are two ways to use it.
+
+**Hosted (no install) — point your client at the live PSA MCP endpoint:**
+
+```json
+{
+  "mcpServers": {
+    "psa": {
+      "url": "https://splabs.io/mcp/",
+      "headers": { "Authorization": "Bearer <your-key>" }
+    }
+  }
+}
+```
+
+The hosted server exposes `psa_analyze_turn` (behavioral-health score, alert band, per-posture readings, IRS safety summary for one turn) and `psa_analyze_conversation` (per-turn readings plus a profile aggregate across a session, for reading drift). It is a read-only wrapper over `/analyze`: it computes nothing new and stores nothing.
+
+**Self-run — run the standalone server locally (also submits traces):**
 
 ```bash
 python -m psa.adapters.mcp
