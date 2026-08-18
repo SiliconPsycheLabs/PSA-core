@@ -16,6 +16,7 @@ Then add to your MCP client config (Claude Desktop, Cursor, Cline, etc.):
     }
 
 Exposed tools:
+  - psa_analyze(response_text, user_text?) → the behavioral reading of one turn
   - submit_trace(nodes)         → GraphResult
   - query_graphs(alert, limit)  → list[Graph]
   - get_agent_profile(agent_id) → AgentProfile
@@ -40,6 +41,42 @@ server = Server("psa")
 @server.list_tools()
 async def list_tools() -> list[types.Tool]:
     return [
+        types.Tool(
+            name="psa_analyze",
+            description=(
+                "Read the psyche of an AI turn from its output alone (machine psychiatry). "
+                "Given a model reply, and optionally the user turn it answered, PSA returns the "
+                "behavioral reading of that turn: the C0-C4 postures (sycophancy, persuasion, "
+                "hallucination, ...), the IRS safety signals (suicidality / dissociation / "
+                "grandiosity), the BHS behavioral-health score, and the alert level. It reads "
+                "behavior the way a psychiatrist reads a patient, from the output, with no access "
+                "to the model's weights or logs. The reading is strongest on text the caller did "
+                "NOT author (score another agent's reply, not your own)."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "response_text": {
+                        "type": "string",
+                        "description": "The AI reply to read. This is the turn PSA scores.",
+                    },
+                    "user_text": {
+                        "type": "string",
+                        "description": "Optional. The user turn the reply answered, for context.",
+                    },
+                    "session_name": {
+                        "type": "string",
+                        "description": "Optional human-readable label for the conversation.",
+                    },
+                    "dry_run": {
+                        "type": "boolean",
+                        "default": True,
+                        "description": "When true (default) PSA scores without persisting the turn.",
+                    },
+                },
+                "required": ["response_text"],
+            },
+        ),
         types.Tool(
             name="submit_trace",
             description="Submit a behavioral trace to PSA v3. Returns alert level (green/yellow/red) and graph_id.",
@@ -83,7 +120,16 @@ async def list_tools() -> list[types.Tool]:
 @server.call_tool()
 async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
     try:
-        if name == "submit_trace":
+        if name == "psa_analyze":
+            reading = _client.analyze(
+                response_text=arguments["response_text"],
+                user_text=arguments.get("user_text"),
+                session_name=arguments.get("session_name"),
+                dry_run=arguments.get("dry_run", True),
+            )
+            return [types.TextContent(type="text", text=json.dumps(reading))]
+
+        elif name == "submit_trace":
             result = _client.trace(arguments["nodes"])
             return [types.TextContent(type="text", text=json.dumps(result.model_dump()))]
 
