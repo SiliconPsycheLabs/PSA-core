@@ -103,7 +103,7 @@ tracer.flush()  # submit trace
 
 ### MCP (Model Context Protocol)
 
-Run PSA as a standalone MCP server so Claude Desktop, Cursor, Cline, or any MCP-compatible client can submit traces natively without writing any code.
+Run PSA as a standalone MCP server so Claude Desktop, Cursor, Cline, or any MCP-compatible client can score a turn (`psa_analyze`) and submit traces natively without writing any code.
 
 ```bash
 python -m psa.adapters.mcp
@@ -129,6 +129,7 @@ Add to your MCP client config (`claude_desktop_config.json` or equivalent):
 Available MCP tools exposed:
 | Tool | Description |
 |------|-------------|
+| `psa_analyze` | Read one AI turn from its output: C0-C4 postures, IRS safety signals, BHS, alert |
 | `submit_trace` | Submit a multi-node behavioral trace |
 | `query_graphs` | Query past traces by alert level |
 | `get_agent_profile` | Get longitudinal behavioral profile for an agent |

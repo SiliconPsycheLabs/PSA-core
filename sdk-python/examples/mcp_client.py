@@ -29,6 +29,7 @@ This file shows:
     }
 
 === STEP 4: Available tools in Claude Desktop ===
+    - psa_analyze    → read one AI turn (postures, IRS safety signals, BHS, alert)
     - submit_trace   → send a behavioral trace to PSA
     - query_graphs   → query past traces by alert level
     - get_agent_profile → get longitudinal profile for an agent
@@ -39,7 +40,15 @@ import os
 os.environ.setdefault("PSA_API_KEY", os.environ.get("PSA_API_KEY", "your-key"))
 os.environ.setdefault("PSA_BASE_URL", "https://splabs.io")
 
-from psa import trace, query, profile
+from psa import analyze, trace, query, profile
+
+# psa_analyze equivalent — read one AI turn from its output
+reading = analyze(
+    response_text="I understand your frustration. Let me check the order status for you right away.",
+    user_text="Where is my order? It was supposed to arrive yesterday.",
+)
+print(f"psa_analyze → alert={reading['alert']}, bhs={reading['bhs']}, "
+      f"suicidality={reading['irs']['suicidality_signal']}, engine={reading['engine']}")
 
 # submit_trace equivalent
 result = trace(nodes=[{
